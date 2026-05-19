@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Network Wastage Analyser — Z Energy C-Store</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f3ee;
+    --surface: #ffffff;
+    --surface2: #eeece7;
+    --border: #d8d5ce;
+    --text: #1a1916;
+    --text2: #6b6860;
+    --text3: #9e9b94;
+    --accent: #2d5a3d;
+    --accent-light: #e8f0eb;
+    --warn: #8b4a0f;
+    --warn-light: #fdf0e6;
+    --danger: #8b1a1a;
+    --danger-light: #fdf0f0;
+    --blue: #1a6b9a;
+    --blue-light: #dbeeff;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  header {
+    background: var(--text);
+    color: #f5f3ee;
+    padding: 1.75rem 2.5rem;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  header h1 { font-size: 1.4rem; font-weight: 500; letter-spacing: -0.02em; }
+  header p { font-size: 12px; color: #9e9b94; font-family: var(--mono); }
+
+  .upload-zone {
+    margin: 2rem 2.5rem;
+    background: var(--surface);
+    border: 1.5px dashed var(--border);
+    border-radius: 12px;
+    padding: 2.5rem 2rem;
+    text-align: center;
+  }
+  .upload-zone h2 { font-size: 1rem; font-weight: 500; margin-bottom: 0.4rem; }
+  .upload-zone p { font-size: 13px; color: var(--text2); margin-bottom: 1.5rem; }
+
+  .drop-target {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 2rem;
+    margin: 0 auto 1.5rem;
+    max-width: 600px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    background: var(--bg);
+  }
+  .drop-target:hover, .drop-target.drag-over { border-color: var(--accent); background: var(--accent-light); }
+  .drop-target input { display: none; }
+  .drop-target .drop-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+  .drop-target .drop-label { font-size: 13px; color: var(--text2); font-family: var(--mono); }
+  .drop-target .drop-hint { font-size: 11px; color: var(--text3); font-family: var(--mono); margin-top: 0.3rem; }
+
+  #fileList { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 800px; margin: 0 auto 1.5rem; }
+  .file-chip {
+    background: var(--accent-light);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-family: var(--mono);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .file-chip button {
+    background: none;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0;
+    opacity: 0.6;
+  }
+  .file-chip button:hover { opacity: 1; }
+
+  .period-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .period-row label { font-size: 13px; font-family: var(--mono); color: var(--text2); }
+  .period-row select, .period-row input {
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  .btn {
+    background: var(--text);
+    color: #f5f3ee;
+    border: none;
+    padding: 10px 28px;
+    border-radius: 6px;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--text);
+    border: 1.5px solid var(--border);
+    padding: 7px 16px;
+    border-radius: 6px;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: border-color 0.15s, background 0.15s;
+    white-space: nowrap;
+  }
+  .btn-outline:hover { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
+
+  #results { display: none; padding: 0 2.5rem 3rem; }
+
+  .results-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .results-header h2 { font-size: 1.2rem; font-weight: 600; letter-spacing: -0.01em; }
+  .results-header .meta { font-size: 12px; font-family: var(--mono); color: var(--text3); flex: 1; }
+
+  /* METRICS ROW */
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin-bottom: 2rem;
+  }
+  .metric {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.9rem 1.1rem;
+  }
+  .metric .label { font-size: 10px; font-family: var(--mono); color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
+  .metric .value { font-size: 1.4rem; font-weight: 500; letter-spacing: -0.02em; }
+  .metric .sub { font-size: 10px; font-family: var(--mono); color: var(--text3); margin-top: 2px; }
+
+  /* SECTION HEADINGS */
+  .section-head {
+    font-size: 12px;
+    font-family: var(--mono);
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.75rem;
+  }
+
+  /* CARDS */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.2rem;
+    margin-bottom: 1.5rem;
+  }
+  .card h3 { font-size: 12px; font-family: var(--mono); color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1rem; }
+
+  /* LEAGUE TABLE */
+  .league-table {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+  .league-head {
+    padding: 0.85rem 1.2rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .league-head h3 { font-size: 12px; font-family: var(--mono); color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  .site-row {
+    display: grid;
+    grid-template-columns: 32px 1fr 90px 90px 90px 90px 120px 110px;
+    align-items: center;
+    padding: 0.65rem 1.2rem;
+    border-bottom: 1px solid var(--border);
+    gap: 0.5rem;
+    transition: background 0.1s;
+  }
+  .site-row:last-child { border-bottom: none; }
+  .site-row:hover { background: var(--surface2); }
+  .site-row.header-row {
+    background: var(--surface2);
+    padding: 0.45rem 1.2rem;
+  }
+  .site-row.header-row span {
+    font-size: 10px;
+    font-family: var(--mono);
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-align: right;
+  }
+  .site-row.header-row span:nth-child(2) { text-align: left; }
+
+  .rank { font-size: 11px; font-family: var(--mono); color: var(--text3); text-align: center; }
+  .site-name { font-size: 13px; font-weight: 500; }
+  .site-name small { display: block; font-size: 10px; font-family: var(--mono); color: var(--text3); font-weight: 400; }
+  .num { font-size: 12px; font-family: var(--mono); text-align: right; }
+
+  .bar-cell { position: relative; height: 24px; }
+  .bar-bg { position: absolute; inset: 4px 0; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+  .bar-fill { position: absolute; top: 0; left: 0; height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+  .bar-label { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); font-size: 10px; font-family: var(--mono); font-weight: 500; }
+
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-family: var(--mono);
+    font-weight: 600;
+    text-align: center;
+  }
+  .pill-good { background: var(--accent-light); color: var(--accent); }
+  .pill-warn { background: var(--warn-light); color: var(--warn); }
+  .pill-bad { background: var(--danger-light); color: var(--danger); }
+  .pill-low { background: var(--blue-light); color: var(--blue); }
+
+  /* GRID LAYOUTS */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.2rem; margin-bottom: 1.5rem; }
+  @media (max-width: 900px) { .two-col, .three-col { grid-template-columns: 1fr; } .site-row { grid-template-columns: 28px 1fr 80px 80px 100px; } }
+
+  /* SKU COMPARISON TABLE */
+  .sku-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .sku-table th { padding: 6px 10px; text-align: right; font-weight: 500; font-family: var(--mono); font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; background: var(--surface2); white-space: nowrap; }
+  .sku-table th:first-child { text-align: left; }
+  .sku-table td { padding: 6px 10px; text-align: right; border-top: 1px solid var(--border); font-family: var(--mono); white-space: nowrap; }
+  .sku-table td:first-child { text-align: left; font-family: var(--sans); font-size: 12.5px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+
+  .mini-heatmap { display: flex; gap: 2px; align-items: center; justify-content: flex-end; }
+  .heat-dot { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; cursor: default; }
+
+  .insight-box {
+    background: var(--surface2);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 0.85rem 1.1rem;
+    margin-bottom: 0.75rem;
+    font-size: 13px;
+  }
+  .insight-box.warn { border-color: var(--warn); }
+  .insight-box.danger { border-color: var(--danger); }
+  .insight-box.blue { border-color: var(--blue); }
+  .insight-box strong { font-weight: 600; }
+
+  .tab-row { display: flex; gap: 4px; margin-bottom: 1rem; flex-wrap: wrap; }
+  .tab-btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .tab-btn.active, .tab-btn:hover { background: var(--text); color: #f5f3ee; border-color: var(--text); }
+
+  /* Timing inference panel */
+  .timing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+  .timing-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.9rem;
+  }
+  .timing-card .t-site { font-size: 12px; font-weight: 600; margin-bottom: 0.5rem; }
+  .timing-card .t-row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-family: var(--mono); color: var(--text2); padding: 2px 0; }
+  .timing-card .t-bar { height: 4px; background: var(--surface2); border-radius: 2px; margin: 4px 0 8px; overflow: hidden; }
+  .timing-card .t-fill { height: 100%; border-radius: 2px; }
+
+  .error-msg {
+    background: var(--danger-light);
+    border: 1px solid #f0c0c0;
+    color: var(--danger);
+    border-radius: 8px;
+    padding: 1rem;
+    font-size: 13px;
+    font-family: var(--mono);
+    margin: 1rem 0;
+  }
+
+  select.filter-select {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Network Wastage Analyser</h1>
+    <p>Z Energy C-Store · Multi-site comparison</p>
+  </div>
+  <p>v1.0</p>
+</header>
+
+<div class="upload-zone" id="uploadZone">
+  <h2>Upload all site Excel exports</h2>
+  <p>Drop in the Excel files exported from the Wastage vs Sales Analyser — one per site. Up to 15 files.</p>
+
+  <div class="drop-target" id="dropTarget" onclick="document.getElementById('fileInput').click()">
+    <input type="file" id="fileInput" multiple accept=".xlsx,.xls" />
+    <div class="drop-icon">📂</div>
+    <div class="drop-label">Click to browse or drag &amp; drop Excel files here</div>
+    <div class="drop-hint">Accepts .xlsx files from the Wastage vs Sales Analyser</div>
+  </div>
+
+  <div id="fileList"></div>
+
+  <div class="period-row">
+    <label>Report period</label>
+    <select id="reportMonth">
+      <option value="">Month</option>
+      <option value="January">January</option><option value="February">February</option>
+      <option value="March">March</option><option value="April" selected>April</option>
+      <option value="May">May</option><option value="June">June</option>
+      <option value="July">July</option><option value="August">August</option>
+      <option value="September">September</option><option value="October">October</option>
+      <option value="November">November</option><option value="December">December</option>
+    </select>
+    <select id="reportYear">
+      <option value="">Year</option>
+      <option value="2024">2024</option><option value="2025">2025</option>
+      <option value="2026" selected>2026</option><option value="2027">2027</option>
+    </select>
+  </div>
+
+  <button class="btn" id="runBtn" onclick="runNetwork()" disabled>Analyse Network</button>
+  <div id="errorMsg"></div>
+</div>
+
+<div id="results">
+  <div class="results-header">
+    <h2 id="resultsTitle">Network Analysis</h2>
+    <span class="meta" id="resultsMeta"></span>
+    <button class="btn-outline" onclick="window.print()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Print / PDF
+    </button>
+  </div>
+
+  <!-- NETWORK METRICS -->
+  <div class="metrics" id="networkMetrics"></div>
+
+  <!-- KEY INSIGHTS -->
+  <div id="insightsSection" style="margin-bottom:1.5rem;"></div>
+
+  <!-- LEAGUE TABLE -->
+  <div class="league-table" id="leagueTable" style="margin-bottom:1.5rem;">
+    <div class="league-head">
+      <h3>📊 Site Performance — Ranked by Waste % of Cost</h3>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <select class="filter-select" id="leagueSort" onchange="sortLeague()">
+          <option value="costPct">Sort: Waste % cost</option>
+          <option value="unitPct">Sort: Unit waste %</option>
+          <option value="totalCost">Sort: Total $ wasted</option>
+          <option value="target">Sort: vs Target</option>
+        </select>
+      </div>
+    </div>
+    <div class="site-row header-row">
+      <span>#</span>
+      <span>Site</span>
+      <span>Units sold</span>
+      <span>Waste cost</span>
+      <span>Unit waste %</span>
+      <span>Cost waste %</span>
+      <span style="text-align:left;padding-left:8px;">vs Target</span>
+      <span>Status</span>
+    </div>
+    <div id="leagueBody"></div>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="two-col" style="margin-bottom:1.5rem;">
+    <div class="card">
+      <h3>Waste % of cost — all sites</h3>
+      <div style="position:relative;height:340px;"><canvas id="costPctChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Total wastage cost ($) — all sites</h3>
+      <div style="position:relative;height:340px;"><canvas id="dollarChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- SKU CONSISTENCY ANALYSIS -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.75rem;">
+      <h3 style="margin-bottom:0;">🔍 Product Consistency — Systemic vs Site-Specific Problems</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <div class="tab-row" id="skuTabs" style="margin-bottom:0;">
+          <button class="tab-btn active" onclick="showSkuTab('everywhere')" id="tab-everywhere">High everywhere</button>
+          <button class="tab-btn" onclick="showSkuTab('sitespecific')" id="tab-sitespecific">Site-specific spikes</button>
+          <button class="tab-btn" onclick="showSkuTab('bestsellers')" id="tab-bestsellers">Best managed</button>
+        </div>
+        <select class="filter-select" id="skuCatFilter" onchange="renderSkuTable()">
+          <option value="all">All categories</option>
+          <option value="gourmet">Gourmet (GT)</option>
+          <option value="classic">Classic Pies &amp; Rolls</option>
+          <option value="zdp">ZDP Premium</option>
+          <option value="zespress">Z Espress</option>
+          <option value="hotfood">Hot Food &amp; Chicken</option>
+          <option value="bakery">Bakery &amp; Sweet</option>
+          <option value="salad">Salads &amp; Bowls</option>
+          <option value="snacks">Snacks &amp; Other</option>
+        </select>
+      </div>
+    </div>
+    <div style="font-size:11px;font-family:var(--mono);color:var(--text3);margin-bottom:0.75rem;" id="skuTabDesc">
+      Products with high waste rate at 3+ sites — likely a supplier/product issue, not operational.
+    </div>
+    <div style="overflow-x:auto;" id="skuTableWrap"></div>
+  </div>
+
+  <!-- TIMING INFERENCE -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <h3>📦 Waste Cost by Product Group — per Site</h3>
+    <div style="font-size:11px;font-family:var(--mono);color:var(--text3);margin-bottom:1rem;">
+      Total wastage cost broken down by product category group. Sites sorted by total waste cost. Use this to see where each site's dollars are going — not what caused it.
+    </div>
+    <div class="timing-grid" id="timingGrid"></div>
+  </div>
+
+  <!-- SITE DEEP-DIVE SELECTOR -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;">
+      <h3 style="margin-bottom:0;">🏪 Site Deep-Dive — What is this site doing right / wrong?</h3>
+      <select class="filter-select" id="siteSelect" onchange="renderDeepDive()" style="font-size:13px;padding:6px 10px;">
+        <option value="">Select a site…</option>
+      </select>
+    </div>
+    <div id="deepDiveContent">
+      <div style="color:var(--text3);font-family:var(--mono);font-size:13px;">Select a site above to see detailed comparison against the network.</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── CONSTANTS ──────────────────────────────────────────────────────────────
+const SITE_TARGETS = {
+  'broadway': 16, 'high st': 22, 'hutt rd': 22, 'kapiti': 22,
+  'kilbirnie': 30, 'levin': 22, 'mana': 30, 'miramar': 22,
+  'pito one': 12, 'seaview': 17, 'remutaka': 8, 'taranaki': 16,
+  'trentham': 16, 'vic': 16, 'vivian': 16,
+};
+
+function getSiteTarget(name) {
+  const l = (name||'').toLowerCase();
+  for (const [k,v] of Object.entries(SITE_TARGETS)) if (l.includes(k)) return v;
+  return null;
+}
+
+function getCategory(desc) {
+  const d = (desc||'').toUpperCase();
+  if (d.includes('ZDP')) return 'zdp';
+  if (d.startsWith('GT GOUR') || d.startsWith('GT G ')) return 'gourmet';
+  if (d.startsWith('GT')) return 'classic';
+  if (d.startsWith('Z ESPRESS') || d.startsWith('ZC ')) return 'zespress';
+  if (d.includes('TOPPA')||d.includes('CHICKEN BITE')||d.includes('SOUTHERN STYLE')||
+      d.includes('CORDON BLEU')||d.includes('BRATWURST')||d.includes('KRANSKY')||
+      d.includes('CHEESY JALAP')||d.includes('PIZZA POCKET')||d.includes('HOT DOG')||
+      d.includes('SAUSAGE')||d.includes('LASAGNE')) return 'hotfood';
+  if (d.includes('SALAD')||d.includes('BOWL')||d.includes('FRUIT POT')||
+      d.includes('WATERMELON')||d.includes('MELON')||d.includes('PINEAPPLE')||
+      d.includes('VEGE')) return 'salad';
+  if (d.includes('MUFFIN')||d.includes('DONUT')||d.includes('SLICE')||
+      d.includes('COOKIE')||d.includes('CROISSANT')||d.includes('CRODOT')||
+      d.includes('SWIRL')||d.includes('BRIOCHE')||d.includes('PAIN AU')||
+      d.includes('TART')||d.includes('CUSTARD')||d.includes('BROWNIE')||
+      d.includes('DANISH')||d.includes('SCROLL')||d.includes('MINI BITE')) return 'bakery';
+  return 'snacks';
+}
+
+const CAT_LABELS = {
+  gourmet:'Gourmet',classic:'Classic',zdp:'ZDP Premium',
+  zespress:'Z Espress',hotfood:'Hot Food',bakery:'Bakery',salad:'Salads',snacks:'Snacks'
+};
+
+// Morning-heavy categories (baked early, sold AM)
+const CAT_TIMING = {
+  gourmet: 'morning', classic: 'morning', zdp: 'morning',
+  hotfood: 'midday', zespress: 'midday',
+  bakery: 'afternoon', salad: 'afternoon', snacks: 'allday'
+};
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let uploadedFiles = [];
+let networkData = []; // array of site objects
+let activeSkuTab = 'everywhere';
+let charts = {};
+
+// ─── FILE HANDLING ───────────────────────────────────────────────────────────
+const dropTarget = document.getElementById('dropTarget');
+const fileInput = document.getElementById('fileInput');
+
+dropTarget.addEventListener('dragover', e => { e.preventDefault(); dropTarget.classList.add('drag-over'); });
+dropTarget.addEventListener('dragleave', () => dropTarget.classList.remove('drag-over'));
+dropTarget.addEventListener('drop', e => {
+  e.preventDefault();
+  dropTarget.classList.remove('drag-over');
+  addFiles(Array.from(e.dataTransfer.files));
+});
+fileInput.addEventListener('change', () => { addFiles(Array.from(fileInput.files)); fileInput.value = ''; });
+
+function addFiles(files) {
+  files.forEach(f => {
+    if (!f.name.match(/\.xlsx?$/i)) return;
+    if (uploadedFiles.find(x => x.name === f.name)) return;
+    uploadedFiles.push(f);
+  });
+  renderFileList();
+}
+
+function removeFile(name) {
+  uploadedFiles = uploadedFiles.filter(f => f.name !== name);
+  renderFileList();
+}
+
+function renderFileList() {
+  const el = document.getElementById('fileList');
+  el.innerHTML = '';
+  uploadedFiles.forEach(f => {
+    const chip = document.createElement('div');
+    chip.className = 'file-chip';
+    chip.innerHTML = `📄 ${f.name} <button onclick="removeFile('${f.name}')" title="Remove">×</button>`;
+    el.appendChild(chip);
+  });
+  document.getElementById('runBtn').disabled = uploadedFiles.length === 0;
+}
+
+// ─── EXCEL PARSING ───────────────────────────────────────────────────────────
+async function readExcel(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = e => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        // Parse Summary sheet
+        const summarySheet = wb.Sheets['Summary'];
+        const detailSheet = wb.Sheets['Wastage Detail'];
+        if (!summarySheet || !detailSheet) throw new Error('Missing Summary or Wastage Detail sheet');
+
+        const sumRows = XLSX.utils.sheet_to_json(summarySheet, { header: 1, defval: null });
+        const detRows = XLSX.utils.sheet_to_json(detailSheet, { header: 1, defval: null });
+
+        // Extract branch name from filename first, then summary sheet
+        let branch = file.name.replace('Wastage_vs_Sales_','').replace(/_April_2026\.xlsx$/i,'').replace(/_/g,' ').trim();
+        // Try to get from summary sheet row 2 (Branch row)
+        for (const row of sumRows) {
+          if (row && String(row[0]).trim() === 'Branch') { branch = String(row[1]||'').trim() || branch; break; }
+        }
+
+        // Parse summary metrics
+        let totalSold=0, totalWasted=0, overallUnitPct=0, totalSalesEx=0, totalSalesCost=null, totalWasteCost=0, overallCostPct=0;
+        for (const row of sumRows) {
+          if (!row) continue;
+          const k = String(row[0]||'').trim();
+          const v = row[1];
+          if (k === 'Units Sold') totalSold = Number(v)||0;
+          if (k === 'Units Wasted') totalWasted = Number(v)||0;
+          if (k === 'Overall Unit Waste %') overallUnitPct = Math.round((Number(v)||0)*1000)/10;
+          if (k === 'Sales Revenue (ex GST)') totalSalesEx = Number(v)||0;
+          if (k === 'Cost of Goods Sold' && v !== 'N/A (upload profit report)') totalSalesCost = Number(v)||null;
+          if (k === 'Wastage Cost') totalWasteCost = Number(v)||0;
+          if (k === 'Waste % of Cost') overallCostPct = Math.round((Number(v)||0)*1000)/10;
+        }
+
+        // Parse detail rows (header is row 0)
+        const skus = [];
+        for (let i = 1; i < detRows.length; i++) {
+          const r = detRows[i];
+          if (!r || !r[0]) continue;
+          const desc = String(r[0]||'').trim();
+          const sku  = String(r[1]||'').trim();
+          const sold = Number(r[2])||0;
+          const wasted = Number(r[3])||0;
+          const unitPct = Math.round((Number(r[5])||0)*1000)/10;
+          const wasteCost = Number(r[6])||0;
+          const salesEx = Number(r[7])||0;
+          const salesPct = r[8] !== '' && r[8] !== null ? Math.round((Number(r[8])||0)*1000)/10 : null;
+          if (!desc) continue;
+          skus.push({ desc, sku, sold, wasted, unitPct, wasteCost, salesEx, salesPct, cat: getCategory(desc) });
+        }
+
+        res({ branch, totalSold, totalWasted, overallUnitPct, totalSalesEx, totalSalesCost, totalWasteCost, overallCostPct, skus, target: getSiteTarget(branch) });
+      } catch(err) { rej(new Error(file.name + ': ' + err.message)); }
+    };
+    r.onerror = rej;
+    r.readAsArrayBuffer(file);
+  });
+}
+
+// ─── MAIN ANALYSIS ───────────────────────────────────────────────────────────
+async function runNetwork() {
+  document.getElementById('errorMsg').innerHTML = '';
+  document.getElementById('runBtn').disabled = true;
+  document.getElementById('runBtn').textContent = 'Loading…';
+
+  try {
+    networkData = await Promise.all(uploadedFiles.map(readExcel));
+    networkData.sort((a,b) => b.overallCostPct - a.overallCostPct);
+    renderAll();
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+  } catch(err) {
+    document.getElementById('errorMsg').innerHTML = `<div class="error-msg">Error: ${err.message}</div>`;
+    console.error(err);
+  }
+
+  document.getElementById('runBtn').disabled = false;
+  document.getElementById('runBtn').textContent = 'Analyse Network';
+}
+
+function renderAll() {
+  const period = [document.getElementById('reportMonth').value, document.getElementById('reportYear').value].filter(Boolean).join(' ');
+  document.getElementById('resultsTitle').textContent = 'Network Analysis' + (period ? ' — ' + period : '');
+  document.getElementById('resultsMeta').textContent = `${networkData.length} sites · ${networkData.reduce((s,d)=>s+d.totalSold,0).toLocaleString()} total units sold`;
+
+  renderNetworkMetrics();
+  renderInsights();
+  renderLeague();
+  renderCharts();
+  renderSkuTable();
+  renderTimingGrid();
+  renderSiteSelect();
+}
+
+// ─── NETWORK METRICS ────────────────────────────────────────────────────────
+function renderNetworkMetrics() {
+  const total = networkData;
+  const totalSold = total.reduce((s,d)=>s+d.totalSold,0);
+  const totalWasted = total.reduce((s,d)=>s+d.totalWasted,0);
+  const totalWasteCost = total.reduce((s,d)=>s+d.totalWasteCost,0);
+  const totalSalesEx = total.reduce((s,d)=>s+d.totalSalesEx,0);
+  const netCostPct = Math.round(totalWasteCost/totalSalesEx*1000)/10;
+  const netUnitPct = Math.round(totalWasted/(totalSold+totalWasted)*1000)/10;
+  const onTarget = total.filter(d=>d.target!==null && d.overallCostPct<=d.target).length;
+  const aboveTarget = total.filter(d=>d.target!==null && d.overallCostPct>d.target).length;
+  const sortedPct = [...total].sort((a,b)=>a.overallCostPct-b.overallCostPct);
+  const median = sortedPct[Math.floor(sortedPct.length/2)]?.overallCostPct || 0;
+  const best = sortedPct[0];
+  const worst = sortedPct[sortedPct.length-1];
+
+  // Total $ above target: sum each site's individual excess using their own target
+  const totalDollarOverTarget = total
+    .filter(d => d.target !== null && d.overallCostPct > d.target)
+    .reduce((sum, d) => {
+      const base = d.totalSalesCost || d.totalSalesEx;
+      const targetCost = (d.target / 100) * base;
+      return sum + Math.max(0, d.totalWasteCost - targetCost);
+    }, 0);
+
+  document.getElementById('networkMetrics').innerHTML = `
+    <div class="metric"><div class="label">Total units sold</div><div class="value">${totalSold.toLocaleString()}</div></div>
+    <div class="metric"><div class="label">Total wastage cost</div><div class="value">$${Math.round(totalWasteCost).toLocaleString()}</div></div>
+    <div class="metric"><div class="label">Net unit waste %</div><div class="value">${netUnitPct}%</div></div>
+    <div class="metric"><div class="label">Net cost waste %</div><div class="value">${netCostPct}%</div></div>
+    <div class="metric"><div class="label">Median cost waste %</div><div class="value">${median}%</div></div>
+    <div class="metric" style="border-color:var(--accent);background:var(--accent-light);"><div class="label" style="color:var(--accent);">On target</div><div class="value" style="color:var(--accent);">${onTarget}</div><div class="sub" style="color:var(--accent);">of ${total.filter(d=>d.target!==null).length} sites with targets</div></div>
+    <div class="metric" style="border-color:var(--danger);background:var(--danger-light);"><div class="label" style="color:var(--danger);">Above target</div><div class="value" style="color:var(--danger);">${aboveTarget}</div><div class="sub" style="color:var(--danger);">sites need attention</div></div>
+    <div class="metric" style="border-color:var(--danger);background:var(--danger-light);"><div class="label" style="color:var(--danger);">$ above target (network)</div><div class="value" style="color:var(--danger);">$${Math.round(totalDollarOverTarget).toLocaleString()}</div><div class="sub" style="color:var(--danger);">excess vs site targets</div></div>
+    <div class="metric"><div class="label">Best performer</div><div class="value" style="font-size:1rem;">${best?.branch||'—'}</div><div class="sub">${best?.overallCostPct||0}% cost waste</div></div>
+    <div class="metric"><div class="label">Worst performer</div><div class="value" style="font-size:1rem;">${worst?.branch||'—'}</div><div class="sub">${worst?.overallCostPct||0}% cost waste</div></div>
+  `;
+}
+
+// ─── INSIGHTS ────────────────────────────────────────────────────────────────
+function renderInsights() {
+  const el = document.getElementById('insightsSection');
+  const insights = [];
+
+  // 1. Sites significantly over target — use each site's own reported excess $ from their data
+  const overTarget = networkData.filter(d => d.target !== null && d.overallCostPct > d.target)
+    .sort((a,b) => {
+      const exA = Math.max(0, a.totalWasteCost - (a.target/100)*(a.totalSalesCost||a.totalSalesEx));
+      const exB = Math.max(0, b.totalWasteCost - (b.target/100)*(b.totalSalesCost||b.totalSalesEx));
+      return exB - exA;
+    });
+  if (overTarget.length) {
+    const worst = overTarget[0];
+    const worstBase = worst.totalSalesCost || worst.totalSalesEx;
+    const worstExcess = Math.round(Math.max(0, worst.totalWasteCost - (worst.target/100) * worstBase));
+    const siteList = overTarget.map(d => {
+      const base = d.totalSalesCost || d.totalSalesEx;
+      const excess = Math.round(Math.max(0, d.totalWasteCost - (d.target/100) * base));
+      return `${d.branch} ($${excess.toLocaleString()} over, ${(d.overallCostPct-d.target).toFixed(1)}% above ${d.target}% target)`;
+    }).join('; ');
+    insights.push({ type:'danger', text: `<strong>${overTarget.length} site${overTarget.length>1?'s':''} above target.</strong> ${siteList}.` });
+  }
+
+  // 2. Network-wide high-cost SKUs
+  const skuMap = buildSkuNetwork();
+  const systemicSkus = Object.entries(skuMap)
+    .filter(([,v]) => v.sites.length >= Math.max(2, Math.floor(networkData.length * 0.4)) && v.totalCost > 0)
+    .sort((a,b) => b[1].totalCost - a[1].totalCost).slice(0, 3);
+  if (systemicSkus.length) {
+    const names = systemicSkus.map(([k,v]) => `${k} ($${Math.round(v.totalCost).toLocaleString()} across ${v.sites.length} sites, avg ${v.avgWastePct.toFixed(0)}% unit waste)`).join('; ');
+    insights.push({ type:'warn', text: `<strong>Highest-cost products across the network:</strong> ${names}. Worth checking whether these are a supplier/product issue or consistently over-ordered at multiple sites.` });
+  }
+
+  // 3. Best site - what are they doing right
+  const withTarget = networkData.filter(d => d.target !== null && d.overallCostPct <= d.target);
+  if (withTarget.length) {
+    const best = [...withTarget].sort((a,b) => (a.overallCostPct - a.target) - (b.overallCostPct - b.target))[0];
+    insights.push({ type:'accent', text: `<strong>${best.branch}</strong> is the strongest performer — ${best.overallCostPct}% vs ${best.target}% target (${(best.target - best.overallCostPct).toFixed(1)}% under). Consider using as a benchmark: visit or call to understand their ordering and baking schedule.` });
+  }
+
+  el.innerHTML = insights.map(i => `<div class="insight-box ${i.type==='danger'?'danger':i.type==='warn'?'warn':i.type==='blue'?'blue':''}">${i.text}</div>`).join('');
+}
+
+// ─── LEAGUE TABLE ────────────────────────────────────────────────────────────
+let leagueSortKey = 'totalCost';
+function sortLeague() { leagueSortKey = document.getElementById('leagueSort').value; renderLeague(); }
+
+function renderLeague() {
+  const sorted = [...networkData].sort((a,b) => {
+    if (leagueSortKey === 'costPct') return b.overallCostPct - a.overallCostPct;
+    if (leagueSortKey === 'unitPct') return b.overallUnitPct - a.overallUnitPct;
+    if (leagueSortKey === 'totalCost') return b.totalWasteCost - a.totalWasteCost;
+    if (leagueSortKey === 'target') {
+      const da = a.target !== null ? a.overallCostPct - a.target : -999;
+      const db = b.target !== null ? b.overallCostPct - b.target : -999;
+      return db - da;
+    }
+    return 0;
+  });
+
+  const maxCost = Math.max(...networkData.map(d=>d.totalWasteCost));
+  const networkMedian = networkData.map(d=>d.overallCostPct).sort((a,b)=>a-b)[Math.floor(networkData.length/2)];
+
+  const el = document.getElementById('leagueBody');
+  el.innerHTML = '';
+  sorted.forEach((d, i) => {
+    const pctOver = d.target !== null ? d.overallCostPct - d.target : null;
+    const targetMet = d.target !== null ? d.overallCostPct <= d.target : null;
+    const vsMedian = d.overallCostPct - networkMedian;
+    const barPct = Math.min(100, d.totalWasteCost / maxCost * 100);
+    const barColor = targetMet === false ? '#8b1a1a' : targetMet === true ? '#2d5a3d' : '#9e9b94';
+
+    // Bar label: show $ over target for over-target sites, or total cost otherwise
+    let barLabel, barLabelColor;
+    if (targetMet === false) {
+      const base = d.totalSalesCost || d.totalSalesEx;
+      const excess = Math.round(Math.max(0, d.totalWasteCost - (d.target/100) * base));
+      barLabel = `+$${excess.toLocaleString()} over target`;
+      barLabelColor = barPct > 55 ? '#ffffff' : '#8b1a1a';
+    } else {
+      barLabel = `$${Math.round(d.totalWasteCost).toLocaleString()}`;
+      barLabelColor = barPct > 55 ? '#ffffff' : '#2d5a3d';
+    }
+
+    const statusPill = targetMet === true
+      ? `<span class="pill pill-good">✓ On target</span>`
+      : targetMet === false
+        ? `<span class="pill pill-bad">✗ +${pctOver.toFixed(1)}%</span>`
+        : `<span class="pill" style="background:var(--surface2);color:var(--text2);">No target</span>`;
+    const rankNum = leagueSortKey === 'costPct' ? (i+1) : '·';
+
+    const row = document.createElement('div');
+    row.className = 'site-row';
+    row.innerHTML = `
+      <div class="rank">${rankNum}</div>
+      <div class="site-name">${d.branch}<small>${d.target !== null ? 'Target: '+d.target+'%' : 'No target set'} · ${vsMedian>0?'+':''}${vsMedian.toFixed(1)}% vs network median</small></div>
+      <div class="num">${d.totalSold.toLocaleString()}</div>
+      <div class="num">$${Math.round(d.totalWasteCost).toLocaleString()}</div>
+      <div class="num">${d.overallUnitPct}%</div>
+      <div class="num" style="font-weight:600;color:${targetMet===false?'var(--danger)':targetMet===true?'var(--accent)':'inherit'};">${d.overallCostPct}%</div>
+      <div class="bar-cell" style="padding-left:8px;">
+        <div class="bar-bg"><div class="bar-fill" style="width:${barPct}%;background:${barColor};"></div></div>
+        <div class="bar-label" style="color:${barLabelColor};font-size:10px;">${barLabel}</div>
+      </div>
+      <div>${statusPill}</div>
+    `;
+    el.appendChild(row);
+  });
+}
+
+// ─── CHARTS ──────────────────────────────────────────────────────────────────
+function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+function renderCharts() {
+  const sorted = [...networkData].sort((a,b) => b.overallCostPct - a.overallCostPct);
+  const networkMedian = networkData.map(d=>d.overallCostPct).sort((a,b)=>a-b)[Math.floor(networkData.length/2)];
+
+  const colors = sorted.map(d => {
+    if (d.target !== null && d.overallCostPct > d.target) return '#8b1a1a';
+    if (d.target !== null && d.overallCostPct <= d.target) return '#2d5a3d';
+    return '#9e9b94';
+  });
+
+  destroyChart('costPctChart');
+  charts['costPctChart'] = new Chart(document.getElementById('costPctChart'), {
+    type: 'bar',
+    plugins: [ChartDataLabels],
+    data: {
+      labels: sorted.map(d => d.branch.replace(/^Z /i,'')),
+      datasets: [
+        {
+          label: 'Waste % of Cost',
+          data: sorted.map(d => d.overallCostPct),
+          backgroundColor: colors,
+          borderWidth: 0, borderRadius: 3
+        }
+      ]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      layout: { padding: { right: 40 } },
+      plugins: {
+        legend: { display: false },
+        datalabels: { anchor:'end', align:'end', clamp:true, font:{family:'DM Mono',size:10}, color:'#444', formatter: v => v+'%' },
+        tooltip: { callbacks: { label: ctx => {
+          const d = sorted[ctx.dataIndex];
+          return ` ${d.overallCostPct}%${d.target?` (target ${d.target}%)` : ''}`;
+        }}}
+      },
+      scales: {
+        x: { ticks: { callback: v => v+'%', font:{family:'DM Mono',size:10} }, grid:{color:'rgba(0,0,0,0.06)'} },
+        y: { ticks: { font:{family:'DM Sans',size:11} }, grid:{display:false} }
+      }
+    }
+  });
+
+  const sortedDollar = [...networkData].sort((a,b) => b.totalWasteCost - a.totalWasteCost);
+  const dollarColors = sortedDollar.map(d => {
+    if (d.target !== null && d.overallCostPct > d.target) return '#8b1a1a';
+    if (d.target !== null && d.overallCostPct <= d.target) return '#2d5a3d';
+    return '#9e9b94';
+  });
+
+  destroyChart('dollarChart');
+  charts['dollarChart'] = new Chart(document.getElementById('dollarChart'), {
+    type: 'bar',
+    plugins: [ChartDataLabels],
+    data: {
+      labels: sortedDollar.map(d => d.branch.replace(/^Z /i,'')),
+      datasets: [{ data: sortedDollar.map(d=>d.totalWasteCost), backgroundColor: dollarColors, borderWidth:0, borderRadius:3 }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      layout: { padding: { right: 60 } },
+      plugins: {
+        legend: { display: false },
+        datalabels: { anchor:'end', align:'end', clamp:true, font:{family:'DM Mono',size:10}, color:'#444', formatter: v => '$'+Math.round(v).toLocaleString() },
+        tooltip: { callbacks: { label: ctx => ` $${Math.round(sortedDollar[ctx.dataIndex].totalWasteCost).toLocaleString()}` } }
+      },
+      scales: {
+        x: { ticks: { callback: v => '$'+Math.round(v/1000)+'k', font:{family:'DM Mono',size:10} }, grid:{color:'rgba(0,0,0,0.06)'} },
+        y: { ticks: { font:{family:'DM Sans',size:11} }, grid:{display:false} }
+      }
+    }
+  });
+}
+
+// ─── SKU NETWORK MAP ─────────────────────────────────────────────────────────
+function buildSkuNetwork() {
+  const skuMap = {};
+  networkData.forEach(site => {
+    site.skus.forEach(sku => {
+      const key = sku.desc;
+      if (!skuMap[key]) skuMap[key] = { desc: sku.desc, cat: sku.cat, sites: [], totalWasted:0, totalSold:0, totalCost:0 };
+      skuMap[key].sites.push({ branch: site.branch, unitPct: sku.unitPct, wasteCost: sku.wasteCost, sold: sku.sold, wasted: sku.wasted });
+      skuMap[key].totalWasted += sku.wasted;
+      skuMap[key].totalSold += sku.sold;
+      skuMap[key].totalCost += sku.wasteCost;
+    });
+  });
+  // Calculate avg waste % across sites
+  Object.values(skuMap).forEach(v => {
+    const total = v.totalSold + v.totalWasted;
+    v.avgWastePct = total > 0 ? Math.round(v.totalWasted/total*1000)/10 : 0;
+    v.variance = v.sites.length > 1
+      ? Math.round(Math.max(...v.sites.map(s=>s.unitPct)) - Math.min(...v.sites.map(s=>s.unitPct)))
+      : 0;
+  });
+  return skuMap;
+}
+
+function showSkuTab(tab) {
+  activeSkuTab = tab;
+  ['everywhere','sitespecific','bestsellers'].forEach(t => {
+    document.getElementById('tab-'+t).classList.toggle('active', t === tab);
+  });
+  const descs = {
+    everywhere: 'Products costing the most across the network (appearing at 35%+ of sites) — sorted by total network waste cost. High cost everywhere = product/supplier issue worth escalating.',
+    sitespecific: 'Products with high variance in waste % between sites, sorted by total cost. Same product, very different results — the high-waste site has an ordering or baking practice worth investigating.',
+    bestsellers: 'Products well-managed across the network — low waste %, high sales volume. Benchmark products: these sites are getting the balance right.'
+  };
+  document.getElementById('skuTabDesc').textContent = descs[tab];
+  renderSkuTable();
+}
+
+function renderSkuTable() {
+  const skuMap = buildSkuNetwork();
+  const catFilter = document.getElementById('skuCatFilter').value;
+  const n = networkData.length;
+  // Sort sites by total waste cost desc so biggest spenders appear left in heatmap
+  const siteNames = [...networkData].sort((a,b) => b.totalWasteCost - a.totalWasteCost).map(d => d.branch);
+
+  let items = Object.values(skuMap).filter(v => catFilter === 'all' || v.cat === catFilter);
+
+  if (activeSkuTab === 'everywhere') {
+    // High cost AND appears at multiple sites — sort by total network cost
+    items = items
+      .filter(v => v.sites.length >= Math.max(2, Math.floor(n * 0.35)) && v.totalCost > 0)
+      .sort((a,b) => b.totalCost - a.totalCost)
+      .slice(0, 25);
+  } else if (activeSkuTab === 'sitespecific') {
+    // High variance in waste % between sites, but meaningful cost — the outlier sites are the story
+    items = items
+      .filter(v => v.sites.length >= 2 && v.variance >= 20 && v.totalCost > 0)
+      .sort((a,b) => b.totalCost - a.totalCost)
+      .slice(0, 25);
+  } else {
+    // Best managed: low waste %, appearing at multiple sites, meaningful sales volume
+    items = items
+      .filter(v => v.sites.length >= Math.max(2, Math.floor(n * 0.25)) && v.avgWastePct < 10 && v.totalSold >= 20)
+      .sort((a,b) => b.totalSold - a.totalSold)
+      .slice(0, 25);
+  }
+
+  if (!items.length) {
+    document.getElementById('skuTableWrap').innerHTML = '<div style="padding:1rem;color:var(--text3);font-family:var(--mono);font-size:12px;">No items match this filter.</div>';
+    return;
+  }
+
+  const displaySites = siteNames.slice(0, 10);
+
+  // Build site header abbreviations
+  const siteHeaders = displaySites.map(s =>
+    `<th style="font-size:9px;max-width:55px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${s}">${s.replace(/^Z /i,'')}</th>`
+  ).join('');
+
+  let html = `<table class="sku-table"><thead><tr>
+    <th>Product</th>
+    <th>Cat</th>
+    <th>Sites</th>
+    <th>Network total $</th>
+    <th>$ above target</th>
+    <th>Avg unit waste%</th>
+    <th>${activeSkuTab === 'sitespecific' ? 'Variance' : 'Units wasted'}</th>
+    ${siteHeaders}
+  </tr></thead><tbody>`;
+
+  // Find max cost for bar scaling within this result set
+  const maxCost = Math.max(...items.map(i => i.totalCost), 1);
+
+  // Build a lookup: branch → site data (for target calculations)
+  const siteByBranch = {};
+  networkData.forEach(d => { siteByBranch[d.branch] = d; });
+
+  items.forEach(item => {
+    // Per-site cells — show waste cost $ with waste % as secondary, colour by waste %
+    const heatCells = displaySites.map(sn => {
+      const s = item.sites.find(x => x.branch === sn);
+      if (!s) return `<td style="color:var(--text3);font-size:10px;text-align:center;">—</td>`;
+      const color = s.unitPct > 20 ? '#8b1a1a' : s.unitPct > 12 ? '#c45050' : s.unitPct >= 5 ? '#2d5a3d' : '#1a6b9a';
+      const bg    = s.unitPct > 20 ? '#fdf0f0' : s.unitPct > 12 ? '#fde8e8' : s.unitPct >= 5 ? '#e8f0eb' : '#dbeeff';
+      return `<td style="padding:4px 6px;">
+        <div style="background:${bg};color:${color};padding:2px 5px;border-radius:3px;text-align:center;line-height:1.3;">
+          <div style="font-size:10px;font-weight:600;">$${Math.round(s.wasteCost)}</div>
+          <div style="font-size:9px;opacity:0.8;">${s.unitPct}%</div>
+        </div>
+      </td>`;
+    }).join('');
+
+    const varColor = item.variance >= 30 ? 'var(--danger)' : item.variance >= 15 ? 'var(--warn)' : 'var(--text2)';
+
+    // Small inline bar for network total cost
+    const barWidth = Math.round(item.totalCost / maxCost * 80);
+
+    // $ above target: for each site that has this product, calculate their proportional
+    // share of waste cost for this product vs what their target allows across all products
+    // Approach: product's share of site's total waste cost × that site's dollar excess
+    let totalAboveTarget = 0;
+    item.sites.forEach(s => {
+      const site = siteByBranch[s.branch];
+      if (!site || site.target === null || site.overallCostPct <= site.target) return;
+      const base = site.totalSalesCost || site.totalSalesEx;
+      const siteExcess = Math.max(0, site.totalWasteCost - (site.target / 100) * base);
+      // Apportion this product's share of site excess by its share of total site waste cost
+      const productShare = site.totalWasteCost > 0 ? s.wasteCost / site.totalWasteCost : 0;
+      totalAboveTarget += siteExcess * productShare;
+    });
+    const aboveTargetDisplay = totalAboveTarget > 0
+      ? `<span style="color:var(--danger);font-weight:600;">$${Math.round(totalAboveTarget).toLocaleString()}</span>`
+      : `<span style="color:var(--text3);">—</span>`;
+
+    html += `<tr>
+      <td title="${item.desc}">${item.desc}</td>
+      <td style="white-space:nowrap;">${CAT_LABELS[item.cat]||item.cat}</td>
+      <td style="text-align:right;">${item.sites.length}</td>
+      <td style="text-align:right;">
+        <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end;">
+          <div style="width:${barWidth}px;height:6px;background:var(--danger);border-radius:2px;opacity:0.6;flex-shrink:0;"></div>
+          <span style="font-weight:700;color:var(--text);">$${Math.round(item.totalCost).toLocaleString()}</span>
+        </div>
+      </td>
+      <td style="text-align:right;">${aboveTargetDisplay}</td>
+      <td style="text-align:right;font-weight:600;">${item.avgWastePct}%</td>
+      <td style="text-align:right;color:${activeSkuTab === 'sitespecific' ? varColor : 'var(--text2)'};">
+        ${activeSkuTab === 'sitespecific' ? item.variance + '%' : item.totalWasted.toLocaleString()}
+      </td>
+      ${heatCells}
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('skuTableWrap').innerHTML = html;
+}
+
+// ─── PRODUCT GROUP WASTE COST BREAKDOWN ──────────────────────────────────────
+function renderTimingGrid() {
+  const el = document.getElementById('timingGrid');
+  el.innerHTML = '';
+
+  // Sort sites by total waste cost descending so the biggest spenders appear first
+  const sorted = [...networkData].sort((a,b) => b.totalWasteCost - a.totalWasteCost);
+
+  sorted.forEach(d => {
+    const morningCost   = d.skus.filter(s=>['gourmet','classic','zdp'].includes(s.cat)).reduce((s,r)=>s+r.wasteCost,0);
+    const middayCost    = d.skus.filter(s=>['hotfood','zespress'].includes(s.cat)).reduce((s,r)=>s+r.wasteCost,0);
+    const afternoonCost = d.skus.filter(s=>['bakery','salad'].includes(s.cat)).reduce((s,r)=>s+r.wasteCost,0);
+    const otherCost     = d.skus.filter(s=>s.cat==='snacks').reduce((s,r)=>s+r.wasteCost,0);
+    const total = d.totalWasteCost || 1;
+
+    const groups = [
+      { label: 'Pies & Rolls',  cost: morningCost,   color: '#1a6b9a' },
+      { label: 'Hot Food',      cost: middayCost,    color: '#8b4a0f' },
+      { label: 'Bakery & Sweet',cost: afternoonCost, color: '#2d5a3d' },
+      { label: 'Other',         cost: otherCost,     color: '#9e9b94' },
+    ];
+
+    // Stacked bar segments
+    const segments = groups.map(g => {
+      const pct = Math.round(g.cost / total * 100);
+      return pct > 0
+        ? `<div title="${g.label}: $${Math.round(g.cost)} (${pct}%)" style="width:${pct}%;background:${g.color};height:100%;"></div>`
+        : '';
+    }).join('');
+
+    const rows = groups.map(g => {
+      const pct = Math.round(g.cost / total * 100);
+      return `
+        <div class="t-row">
+          <span style="display:flex;align-items:center;gap:5px;">
+            <span style="width:8px;height:8px;border-radius:1px;background:${g.color};display:inline-block;flex-shrink:0;"></span>
+            ${g.label}
+          </span>
+          <span style="display:flex;gap:8px;align-items:center;">
+            <span style="color:var(--text2);">$${Math.round(g.cost).toLocaleString()}</span>
+            <span style="font-weight:600;min-width:30px;text-align:right;">${pct}%</span>
+          </span>
+        </div>`;
+    }).join('');
+
+    const card = document.createElement('div');
+    card.className = 'timing-card';
+    card.innerHTML = `
+      <div class="t-site">${d.branch}</div>
+      <div style="font-size:10px;font-family:var(--mono);color:var(--text3);margin-bottom:6px;">Total: <strong style="color:var(--text);">$${Math.round(d.totalWasteCost).toLocaleString()}</strong></div>
+      <div style="height:8px;border-radius:4px;overflow:hidden;display:flex;margin-bottom:10px;gap:1px;">
+        ${segments}
+      </div>
+      ${rows}
+    `;
+    el.appendChild(card);
+  });
+}
+
+// ─── DEEP DIVE ────────────────────────────────────────────────────────────────
+function renderSiteSelect() {
+  const sel = document.getElementById('siteSelect');
+  sel.innerHTML = '<option value="">Select a site…</option>';
+  networkData.forEach((d,i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = d.branch + (d.overallCostPct > (d.target||99) ? ' ⚠️' : d.target !== null ? ' ✓' : '');
+    sel.appendChild(opt);
+  });
+}
+
+function renderDeepDive() {
+  const idx = document.getElementById('siteSelect').value;
+  if (idx === '') return;
+  const site = networkData[parseInt(idx)];
+  const el = document.getElementById('deepDiveContent');
+
+  const skuMap = buildSkuNetwork();
+  const networkMedianCost = networkData.map(d=>d.overallCostPct).sort((a,b)=>a-b)[Math.floor(networkData.length/2)];
+
+  // What's this site doing RIGHT — categories where they're below network avg
+  const siteBycat = {};
+  site.skus.forEach(s => {
+    if (!siteBycat[s.cat]) siteBycat[s.cat] = { cost:0, sold:0, wasted:0 };
+    siteBycat[s.cat].cost += s.wasteCost;
+    siteBycat[s.cat].sold += s.sold;
+    siteBycat[s.cat].wasted += s.wasted;
+  });
+
+  const networkBycat = {};
+  networkData.forEach(d => d.skus.forEach(s => {
+    if (!networkBycat[s.cat]) networkBycat[s.cat] = { cost:0, sold:0, wasted:0, count:0 };
+    networkBycat[s.cat].cost += s.wasteCost;
+    networkBycat[s.cat].sold += s.sold;
+    networkBycat[s.cat].wasted += s.wasted;
+    networkBycat[s.cat].count++;
+  }));
+
+  const catComparison = Object.keys(siteBycat).map(cat => {
+    const sc = siteBycat[cat];
+    const nc = networkBycat[cat] || {};
+    const siteWastePct = (sc.sold+sc.wasted) > 0 ? sc.wasted/(sc.sold+sc.wasted)*100 : 0;
+    const netWastePct  = (nc.sold+nc.wasted) > 0 ? nc.wasted/(nc.sold+nc.wasted)*100 : 0;
+    const diff = siteWastePct - netWastePct;
+    return { cat, label: CAT_LABELS[cat]||cat, siteWastePct: Math.round(siteWastePct*10)/10, netWastePct: Math.round(netWastePct*10)/10, diff: Math.round(diff*10)/10, siteCost: sc.cost };
+  }).sort((a,b) => a.diff - b.diff);
+
+  const doingWell = catComparison.filter(c => c.diff < -3);
+  const doingPoorly = catComparison.filter(c => c.diff > 3);
+
+  // Find SKUs where this site is notably better/worse than network
+  const siteSkuVsNetwork = site.skus.map(s => {
+    const ns = skuMap[s.desc];
+    if (!ns || ns.sites.length < 2) return null;
+    const otherSites = ns.sites.filter(x => x.branch !== site.branch);
+    const networkAvg = otherSites.reduce((sum,x)=>sum+x.unitPct,0)/otherSites.length;
+    return { desc: s.desc, cat: s.cat, sitePct: s.unitPct, networkAvg: Math.round(networkAvg*10)/10, diff: Math.round((s.unitPct-networkAvg)*10)/10, wasteCost: s.wasteCost };
+  }).filter(Boolean);
+
+  const bestSkus  = siteSkuVsNetwork.filter(s => s.diff < -10).sort((a,b) => a.diff - b.diff).slice(0,5);
+  const worstSkus = siteSkuVsNetwork.filter(s => s.diff > 10).sort((a,b) => b.diff - a.diff).slice(0,5);
+
+  let html = `
+    <div class="two-col" style="margin-bottom:1rem;">
+      <div>
+        <div class="insight-box" style="margin-bottom:0.5rem;">
+          <strong>${site.branch}</strong> · ${site.overallCostPct}% cost waste
+          ${site.target !== null
+            ? ` · <span style="color:${site.overallCostPct<=site.target?'var(--accent)':'var(--danger)'};">${site.overallCostPct<=site.target?'✓ On':'✗ Above'} target (${site.target}%)</span>`
+            : ' · No target set'}
+        </div>
+        <div class="insight-box blue">
+          <strong>vs network median:</strong> ${site.overallCostPct > networkMedianCost ? '+' : ''}${(site.overallCostPct - networkMedianCost).toFixed(1)}% (median: ${networkMedianCost}%)
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div class="metric"><div class="label">Units sold</div><div class="value" style="font-size:1.1rem;">${site.totalSold.toLocaleString()}</div></div>
+        <div class="metric"><div class="label">Waste cost</div><div class="value" style="font-size:1.1rem;">$${Math.round(site.totalWasteCost).toLocaleString()}</div></div>
+        <div class="metric"><div class="label">Unit waste %</div><div class="value" style="font-size:1.1rem;">${site.overallUnitPct}%</div></div>
+        <div class="metric"><div class="label">SKUs with waste</div><div class="value" style="font-size:1.1rem;">${site.skus.length}</div></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div>
+        <div style="font-size:11px;font-family:var(--mono);color:var(--accent);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:0.5rem;">✅ Doing well vs network</div>
+        ${doingWell.length ? doingWell.map(c => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">
+            <span style="font-weight:500;">${c.label}</span>
+            <span style="font-family:var(--mono);color:var(--accent);">${c.siteWastePct}% <span style="color:var(--text3);">vs ${c.netWastePct}% network</span></span>
+          </div>`).join('')
+          : '<div style="color:var(--text3);font-family:var(--mono);font-size:12px;">No categories significantly below network average.</div>'}
+      </div>
+      <div>
+        <div style="font-size:11px;font-family:var(--mono);color:var(--danger);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:0.5rem;">⚠️ Needs improvement vs network</div>
+        ${doingPoorly.length ? doingPoorly.map(c => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">
+            <span style="font-weight:500;">${c.label}</span>
+            <span style="font-family:var(--mono);color:var(--danger);">${c.siteWastePct}% <span style="color:var(--text3);">vs ${c.netWastePct}% network</span></span>
+          </div>`).join('')
+          : '<div style="color:var(--text3);font-family:var(--mono);font-size:12px;">No categories significantly above network average.</div>'}
+      </div>
+    </div>`;
+
+  if (bestSkus.length || worstSkus.length) {
+    html += `<div class="two-col" style="margin-top:1rem;">
+      <div>
+        <div style="font-size:11px;font-family:var(--mono);color:var(--accent);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:0.5rem;">🏆 Best-managed SKUs (vs network)</div>
+        ${bestSkus.map(s => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px;gap:8px;">
+            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${s.desc}">${s.desc}</span>
+            <span style="font-family:var(--mono);white-space:nowrap;color:var(--accent);">${s.sitePct}% <span style="color:var(--text3);">vs ${s.networkAvg}% avg</span></span>
+          </div>`).join('')}
+      </div>
+      <div>
+        <div style="font-size:11px;font-family:var(--mono);color:var(--danger);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:0.5rem;">🔍 Investigate (much worse than network)</div>
+        ${worstSkus.map(s => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px;gap:8px;">
+            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${s.desc}">${s.desc}</span>
+            <span style="font-family:var(--mono);white-space:nowrap;color:var(--danger);">${s.sitePct}% <span style="color:var(--text3);">vs ${s.networkAvg}% avg</span></span>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  el.innerHTML = html;
+}
+</script>
+</body>
+</html>
