@@ -602,7 +602,7 @@
       </div>
     </div>
     <!-- Traffic light legend -->
-    <div style="display:flex;gap:12px;margin-bottom:0.75rem;flex-wrap:wrap;">
+    <div id="oppLegend" style="display:flex;gap:12px;margin-bottom:0.75rem;flex-wrap:wrap;">
       <span style="font-size:11px;font-family:var(--mono);display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#1a6b9a;display:inline-block;"></span>Too Low (&lt;5% waste) — order more</span>
       <span style="font-size:11px;font-family:var(--mono);display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#2d5a3d;display:inline-block;"></span>Good (5–12% waste)</span>
       <span style="font-size:11px;font-family:var(--mono);display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#8b1a1a;display:inline-block;"></span>Too High (&gt;12% waste) — order less</span>
@@ -615,7 +615,7 @@
           <span style="font-size: 18px;">🔼</span>
           <div>
             <div style="font-size: 13px; font-weight: 600; color: #fff;">BAKE MORE — Too Low</div>
-            <div style="font-size: 11px; color: rgba(255,255,255,0.7); font-family: var(--mono);">Selling well · &lt;15% wastage · risk of running out</div>
+            <div id="bakeMoreSub" style="font-size: 11px; color: rgba(255,255,255,0.7); font-family: var(--mono);">Selling well · &lt;5% wastage · risk of running out</div>
           </div>
         </div>
         <div style="padding: 0.5rem 0;" id="bakeMoreList"></div>
@@ -627,7 +627,7 @@
           <span style="font-size: 18px;">🔽</span>
           <div>
             <div style="font-size: 13px; font-weight: 600; color: #fff;">BAKE LESS — Too High</div>
-            <div style="font-size: 11px; color: rgba(255,255,255,0.7); font-family: var(--mono);">High wastage rate · &gt;30% · reduce quantities</div>
+            <div id="bakeLessSub" style="font-size: 11px; color: rgba(255,255,255,0.7); font-family: var(--mono);">High wastage rate · &gt;12% · reduce quantities</div>
           </div>
         </div>
         <div style="padding: 0.5rem 0;" id="bakeLessList"></div>
@@ -639,7 +639,7 @@
   <div class="table-card">
     <h3>Full SKU breakdown — sorted by cost waste %</h3>
     <div style="padding: 0.75rem 1.2rem 0; display:flex; gap:1rem; flex-wrap:wrap; align-items:center; justify-content:space-between;">
-      <div class="legend">
+      <div class="legend" id="tableLegend">
         <span><span class="dot" style="background:#1a6b9a;"></span>Too Low (&lt;5%)</span>
         <span><span class="dot" style="background:#2d5a3d;"></span>Good (5–12%)</span>
         <span><span class="dot" style="background:#8b1a1a;"></span>Too High (&gt;12%)</span>
@@ -1315,13 +1315,37 @@ async function runAnalysis() {
       ${targetMetricHtml}
     `;
 
-    // Update dollar chart legend to reflect selected thresholds
+    // Update all static legends to reflect selected thresholds
     const legendEl = document.getElementById('dollarLegend');
     if (legendEl) legendEl.innerHTML = `
       <span><span class="dot" style="background:#1a6b9a;"></span>Too Low (&lt;${threshLow}% waste)</span>
       <span><span class="dot" style="background:#2d5a3d;"></span>Good (${threshLow}–${threshHigh}%)</span>
       <span><span class="dot" style="background:#8b1a1a;"></span>Too High (&gt;${threshHigh}%)</span>
     `;
+    const oppLegendEl = document.getElementById('oppLegend');
+    if (oppLegendEl) oppLegendEl.innerHTML = `
+      <span style="font-size:11px;font-family:var(--mono);display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#1a6b9a;display:inline-block;"></span>Too Low (&lt;${threshLow}% waste) — order more</span>
+      <span style="font-size:11px;font-family:var(--mono);display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#2d5a3d;display:inline-block;"></span>Good (${threshLow}–${threshHigh}% waste)</span>
+      <span style="font-size:11px;font-family:var(--mono);display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#8b1a1a;display:inline-block;"></span>Too High (&gt;${threshHigh}% waste) — order less</span>
+    `;
+    const tableLegendEl = document.getElementById('tableLegend');
+    if (tableLegendEl) tableLegendEl.innerHTML = `
+      <span><span class="dot" style="background:#1a6b9a;"></span>Too Low (&lt;${threshLow}%)</span>
+      <span><span class="dot" style="background:#2d5a3d;"></span>Good (${threshLow}–${threshHigh}%)</span>
+      <span><span class="dot" style="background:#8b1a1a;"></span>Too High (&gt;${threshHigh}%)</span>
+    `;
+    // Update bake panel subtitles
+    const bakeMoreSub = document.getElementById('bakeMoreSub');
+    if (bakeMoreSub) bakeMoreSub.textContent = 'Selling well · <' + threshLow + '% wastage · risk of running out';
+    const bakeLessSub = document.getElementById('bakeLessSub');
+    if (bakeLessSub) bakeLessSub.textContent = 'High wastage rate · >' + threshHigh + '% · reduce quantities';
+    // Update table stock filter options
+    const stockFilter = document.getElementById('tableStockFilter');
+    if (stockFilter) {
+      stockFilter.options[1].text = 'Too Low (<' + threshLow + '%)';
+      stockFilter.options[2].text = 'Good (' + threshLow + '–' + threshHigh + '%)';
+      stockFilter.options[3].text = 'Too High (>' + threshHigh + '%)';
+    }
 
     // Charts — min 5 units wasted for rate charts
     const forCharts = merged.filter(r => r.wasted >= 5 && r.salesPct !== null);
@@ -1578,14 +1602,19 @@ function generateSummary() {
   // Top 5 by dollar wastage
   const top5Dollar = [...lastMerged].sort((a, b) => b.wasteCost - a.wasteCost).slice(0, 5);
 
-  // Top 3 too high (>12% unit waste, min 5 wasted)
+  // Read thresholds from inputs
+  const tLow  = parseFloat(document.getElementById('threshLow')?.value)  || 5;
+  const tHigh = parseFloat(document.getElementById('threshHigh')?.value) || 12;
+  const tMid  = Math.round((tLow + tHigh) / 2);
+
+  // Top 3 too high (> tHigh unit waste, min 3 wasted)
   const overStocked = [...lastMerged]
-    .filter(r => r.band === 'over' && r.wasted >= 3)
+    .filter(r => r.unitPct > tHigh && r.wasted >= 3)
     .sort((a, b) => b.unitPct - a.unitPct).slice(0, 3);
 
-  // Top 3 too low (<5% unit waste, min 10 sold)
+  // Top 3 too low (< tLow unit waste, min 5 sold)
   const underStocked = [...lastMerged]
-    .filter(r => r.band === 'under' && r.sold >= 5)
+    .filter(r => r.unitPct < tLow && r.sold >= 5)
     .sort((a, b) => b.sold - a.sold).slice(0, 3);
 
   // Items with zero wastage (selling out risk)
@@ -1659,7 +1688,7 @@ function generateSummary() {
 
   // --- OVER-STOCKED ---
   if (overStocked.length) {
-    html += '<p style="margin-bottom:0.5rem;font-style:normal;color:var(--text);"><strong style="color:#8b1a1a;">🔽 Reduce ordering (Too High &gt;12% waste):</strong></p>';
+    html += '<p style="margin-bottom:0.5rem;font-style:normal;color:var(--text);"><strong style="color:#8b1a1a;">🔽 Reduce ordering (Too High &gt;' + tHigh + '% waste):</strong></p>';
     html += '<ul style="margin:0 0 0.75rem 1.2rem;font-style:normal;color:var(--text);">';
     for (const r of overStocked) {
       html += '<li><strong>' + r.desc + '</strong> — ' + r.unitPct + '% unit waste (' + r.sold + ' sold, ' + r.wasted + ' wasted)</li>';
@@ -1669,7 +1698,7 @@ function generateSummary() {
 
   // --- UNDER-STOCKED ---
   if (underStocked.length) {
-    html += '<p style="margin-bottom:0.5rem;font-style:normal;color:var(--text);"><strong style="color:#1a6b9a;">🔼 Increase ordering (Too Low &lt;5% waste):</strong></p>';
+    html += '<p style="margin-bottom:0.5rem;font-style:normal;color:var(--text);"><strong style="color:#1a6b9a;">🔼 Increase ordering (Too Low &lt;' + tLow + '% waste):</strong></p>';
     html += '<ul style="margin:0 0 0.75rem 1.2rem;font-style:normal;color:var(--text);">';
     for (const r of underStocked) {
       html += '<li><strong>' + r.desc + '</strong> — only ' + r.unitPct + '% unit waste (' + r.sold + ' sold, ' + r.wasted + ' wasted)</li>';
@@ -1691,16 +1720,10 @@ function generateSummary() {
   html += '<div style="background:#f5f3ee;border-radius:8px;padding:1rem 1.2rem;margin-bottom:0.75rem;font-style:normal;">';
   html += '<p style="font-weight:600;color:var(--text);margin-bottom:0.6rem;">🎯 Priority Actions — Biggest $ Impact</p>';
 
-  // Calculate: if we reduced each too-high item to 22% waste (midpoint of good band),
-  // how much would we save? = current wasteCost - (wasteCost * 25 / unitPct)
   const actionItems = [...lastMerged]
-    .filter(r => r.band === 'over' && r.wasted >= 1 && r.unitPct > 0)
+    .filter(r => r.unitPct > tHigh && r.wasted >= 1 && r.unitPct > 0)
     .map(r => {
-      // Target: bring waste down to 22% (middle of 15-30% on-track band)
-      const targetPct = 8; // midpoint of good band (5-12%)
-      // Current: wasted/(sold+wasted) = unitPct/100
-      // At target: wasted_new/(sold+wasted_new) = targetPct/100
-      // => wasted_new = sold * targetPct / (100 - targetPct)
+      const targetPct = tMid; // midpoint of good band
       const targetWasted = r.sold * targetPct / (100 - targetPct);
       const unitCost = r.wasted > 0 ? r.wasteCost / r.wasted : 0;
       const saving = Math.max(0, (r.wasted - targetWasted) * unitCost);
@@ -1713,7 +1736,7 @@ function generateSummary() {
   const totalPotentialSaving = actionItems.reduce((s, r) => s + r.saving, 0);
 
   if (actionItems.length) {
-    html += '<p style="color:var(--text2);font-size:12.5px;margin-bottom:0.6rem;">If the following Too High items were brought to an 8% unit waste rate (mid Good band 5-12%), estimated monthly saving:</p>';
+    html += '<p style="color:var(--text2);font-size:12.5px;margin-bottom:0.6rem;">If the following Too High items were brought to a ' + tMid + '% unit waste rate (mid Good band ' + tLow + '–' + tHigh + '%), estimated monthly saving:</p>';
     html += '<ul style="margin:0 0 0.6rem 1.2rem;color:var(--text);">';
     for (const r of actionItems) {
       html += '<li><strong>' + r.desc + '</strong>';
