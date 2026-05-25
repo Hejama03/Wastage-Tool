@@ -470,86 +470,297 @@
   <p>Drop in the three weekly XLS exports for any branch. The analysis runs automatically.</p>
 
   <div class="branch-field">
-    <label>Branch name (optional)</label>
-    <input type="text" id="branchName" placeholder="e.g. Z Taranaki St" />
-  </div>
-
-  <div class="branch-field">
-    <label>Report period</label>
-    <select id="reportMonth" style="font-family:var(--mono);font-size:13px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);width:130px;">
-      <option value="">Week</option>
-      <option value="Week 1">Week 1</option>
-      <option value="Week 2">Week 2</option>
-      <option value="Week 3">Week 3</option>
-      <option value="Week 4">Week 4</option>
-      <option value="Week 5">Week 5</option>
-      <option value="Week 6">Week 6</option>
-      <option value="Week 7">Week 7</option>
-      <option value="Week 8">Week 8</option>
-      <option value="Week 9">Week 9</option>
-      <option value="Week 10">Week 10</option>
-      <option value="Week 11">Week 11</option>
-      <option value="Week 12">Week 12</option>
-      <option value="Week 13">Week 13</option>
-      <option value="Week 14">Week 14</option>
-      <option value="Week 15">Week 15</option>
-      <option value="Week 16">Week 16</option>
-      <option value="Week 17">Week 17</option>
-      <option value="Week 18">Week 18</option>
-      <option value="Week 19">Week 19</option>
-      <option value="Week 20">Week 20</option>
-      <option value="Week 21">Week 21</option>
-      <option value="Week 22">Week 22</option>
-      <option value="Week 23">Week 23</option>
-      <option value="Week 24">Week 24</option>
-      <option value="Week 25">Week 25</option>
-      <option value="Week 26">Week 26</option>
-      <option value="Week 27">Week 27</option>
-      <option value="Week 28">Week 28</option>
-      <option value="Week 29">Week 29</option>
-      <option value="Week 30">Week 30</option>
-      <option value="Week 31">Week 31</option>
-      <option value="Week 32">Week 32</option>
-      <option value="Week 33">Week 33</option>
-      <option value="Week 34">Week 34</option>
-      <option value="Week 35">Week 35</option>
-      <option value="Week 36">Week 36</option>
-      <option value="Week 37">Week 37</option>
-      <option value="Week 38">Week 38</option>
-      <option value="Week 39">Week 39</option>
-      <option value="Week 40">Week 40</option>
-      <option value="Week 41">Week 41</option>
-      <option value="Week 42">Week 42</option>
-      <option value="Week 43">Week 43</option>
-      <option value="Week 44">Week 44</option>
-      <option value="Week 45">Week 45</option>
-      <option value="Week 46">Week 46</option>
-      <option value="Week 47">Week 47</option>
-      <option value="Week 48">Week 48</option>
-      <option value="Week 49">Week 49</option>
-      <option value="Week 50">Week 50</option>
-      <option value="Week 51">Week 51</option>
-      <option value="Week 52">Week 52</option>
-    </select>
-    <select id="reportYear" style="font-family:var(--mono);font-size:13px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);width:100px;">
-      <option value="">Year</option>
-      <option value="2024">2024</option>
-      <option value="2025">2025</option>
-      <option value="2026">2026</option>
-      <option value="2027">2027</option>
+    <label>Select site</label>
+    <select id="branchName" onchange="onSiteChange()" style="font-family:var(--mono);font-size:13px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);width:220px;">
+      <option value="">— Select a site —</option>
+      <option value="Z Broadway">Z Broadway</option>
+      <option value="Z High St">Z High St</option>
+      <option value="Z Hutt Rd">Z Hutt Rd</option>
+      <option value="Z Kapiti">Z Kapiti</option>
+      <option value="Z Kilbirnie">Z Kilbirnie</option>
+      <option value="Z Levin">Z Levin</option>
+      <option value="Z Mana">Z Mana</option>
+      <option value="Z Miramar">Z Miramar</option>
+      <option value="Z Pito One">Z Pito One</option>
+      <option value="Z Remutaka">Z Remutaka</option>
+      <option value="Z Seaview">Z Seaview</option>
+      <option value="Z Taranaki St">Z Taranaki St</option>
+      <option value="Z Trentham">Z Trentham</option>
+      <option value="Z VIC Corner">Z VIC Corner</option>
+      <option value="Z Vivian St">Z Vivian St</option>
     </select>
   </div>
 
   <div class="branch-field">
-    <label>Wastage bands</label>
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-      <span style="font-size:12px;font-family:var(--mono);color:var(--text2);">Too Low &lt;</span>
-      <input type="number" id="threshLow" value="5" min="1" max="50" style="font-family:var(--mono);font-size:13px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);width:64px;text-align:center;">
-      <span style="font-size:12px;font-family:var(--mono);color:var(--text2);">% &nbsp;·&nbsp; Too High &gt;</span>
-      <input type="number" id="threshHigh" value="12" min="1" max="100" style="font-family:var(--mono);font-size:13px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);width:64px;text-align:center;">
-      <span style="font-size:12px;font-family:var(--mono);color:var(--text2);">% &nbsp;·&nbsp; Good in between</span>
-    </div>
+    <label>Week ending</label>
+    <select id="reportMonth" style="font-family:var(--mono);font-size:13px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);width:220px;">
+      <option value="">— Select week ending —</option>
+      <option value="Week Ending 04/01/2026">4 January 2026</option>
+      <option value="Week Ending 11/01/2026">11 January 2026</option>
+      <option value="Week Ending 18/01/2026">18 January 2026</option>
+      <option value="Week Ending 25/01/2026">25 January 2026</option>
+      <option value="Week Ending 01/02/2026">1 February 2026</option>
+      <option value="Week Ending 08/02/2026">8 February 2026</option>
+      <option value="Week Ending 15/02/2026">15 February 2026</option>
+      <option value="Week Ending 22/02/2026">22 February 2026</option>
+      <option value="Week Ending 01/03/2026">1 March 2026</option>
+      <option value="Week Ending 08/03/2026">8 March 2026</option>
+      <option value="Week Ending 15/03/2026">15 March 2026</option>
+      <option value="Week Ending 22/03/2026">22 March 2026</option>
+      <option value="Week Ending 29/03/2026">29 March 2026</option>
+      <option value="Week Ending 05/04/2026">5 April 2026</option>
+      <option value="Week Ending 12/04/2026">12 April 2026</option>
+      <option value="Week Ending 19/04/2026">19 April 2026</option>
+      <option value="Week Ending 26/04/2026">26 April 2026</option>
+      <option value="Week Ending 03/05/2026">3 May 2026</option>
+      <option value="Week Ending 10/05/2026">10 May 2026</option>
+      <option value="Week Ending 17/05/2026">17 May 2026</option>
+      <option value="Week Ending 24/05/2026">24 May 2026</option>
+      <option value="Week Ending 31/05/2026">31 May 2026</option>
+      <option value="Week Ending 07/06/2026">7 June 2026</option>
+      <option value="Week Ending 14/06/2026">14 June 2026</option>
+      <option value="Week Ending 21/06/2026">21 June 2026</option>
+      <option value="Week Ending 28/06/2026">28 June 2026</option>
+      <option value="Week Ending 05/07/2026">5 July 2026</option>
+      <option value="Week Ending 12/07/2026">12 July 2026</option>
+      <option value="Week Ending 19/07/2026">19 July 2026</option>
+      <option value="Week Ending 26/07/2026">26 July 2026</option>
+      <option value="Week Ending 02/08/2026">2 August 2026</option>
+      <option value="Week Ending 09/08/2026">9 August 2026</option>
+      <option value="Week Ending 16/08/2026">16 August 2026</option>
+      <option value="Week Ending 23/08/2026">23 August 2026</option>
+      <option value="Week Ending 30/08/2026">30 August 2026</option>
+      <option value="Week Ending 06/09/2026">6 September 2026</option>
+      <option value="Week Ending 13/09/2026">13 September 2026</option>
+      <option value="Week Ending 20/09/2026">20 September 2026</option>
+      <option value="Week Ending 27/09/2026">27 September 2026</option>
+      <option value="Week Ending 04/10/2026">4 October 2026</option>
+      <option value="Week Ending 11/10/2026">11 October 2026</option>
+      <option value="Week Ending 18/10/2026">18 October 2026</option>
+      <option value="Week Ending 25/10/2026">25 October 2026</option>
+      <option value="Week Ending 01/11/2026">1 November 2026</option>
+      <option value="Week Ending 08/11/2026">8 November 2026</option>
+      <option value="Week Ending 15/11/2026">15 November 2026</option>
+      <option value="Week Ending 22/11/2026">22 November 2026</option>
+      <option value="Week Ending 29/11/2026">29 November 2026</option>
+      <option value="Week Ending 06/12/2026">6 December 2026</option>
+      <option value="Week Ending 13/12/2026">13 December 2026</option>
+      <option value="Week Ending 20/12/2026">20 December 2026</option>
+      <option value="Week Ending 27/12/2026">27 December 2026</option>
+      <option value="Week Ending 03/01/2027">3 January 2027</option>
+      <option value="Week Ending 10/01/2027">10 January 2027</option>
+      <option value="Week Ending 17/01/2027">17 January 2027</option>
+      <option value="Week Ending 24/01/2027">24 January 2027</option>
+      <option value="Week Ending 31/01/2027">31 January 2027</option>
+      <option value="Week Ending 07/02/2027">7 February 2027</option>
+      <option value="Week Ending 14/02/2027">14 February 2027</option>
+      <option value="Week Ending 21/02/2027">21 February 2027</option>
+      <option value="Week Ending 28/02/2027">28 February 2027</option>
+      <option value="Week Ending 07/03/2027">7 March 2027</option>
+      <option value="Week Ending 14/03/2027">14 March 2027</option>
+      <option value="Week Ending 21/03/2027">21 March 2027</option>
+      <option value="Week Ending 28/03/2027">28 March 2027</option>
+      <option value="Week Ending 04/04/2027">4 April 2027</option>
+      <option value="Week Ending 11/04/2027">11 April 2027</option>
+      <option value="Week Ending 18/04/2027">18 April 2027</option>
+      <option value="Week Ending 25/04/2027">25 April 2027</option>
+      <option value="Week Ending 02/05/2027">2 May 2027</option>
+      <option value="Week Ending 09/05/2027">9 May 2027</option>
+      <option value="Week Ending 16/05/2027">16 May 2027</option>
+      <option value="Week Ending 23/05/2027">23 May 2027</option>
+      <option value="Week Ending 30/05/2027">30 May 2027</option>
+      <option value="Week Ending 06/06/2027">6 June 2027</option>
+      <option value="Week Ending 13/06/2027">13 June 2027</option>
+      <option value="Week Ending 20/06/2027">20 June 2027</option>
+      <option value="Week Ending 27/06/2027">27 June 2027</option>
+      <option value="Week Ending 04/07/2027">4 July 2027</option>
+      <option value="Week Ending 11/07/2027">11 July 2027</option>
+      <option value="Week Ending 18/07/2027">18 July 2027</option>
+      <option value="Week Ending 25/07/2027">25 July 2027</option>
+      <option value="Week Ending 01/08/2027">1 August 2027</option>
+      <option value="Week Ending 08/08/2027">8 August 2027</option>
+      <option value="Week Ending 15/08/2027">15 August 2027</option>
+      <option value="Week Ending 22/08/2027">22 August 2027</option>
+      <option value="Week Ending 29/08/2027">29 August 2027</option>
+      <option value="Week Ending 05/09/2027">5 September 2027</option>
+      <option value="Week Ending 12/09/2027">12 September 2027</option>
+      <option value="Week Ending 19/09/2027">19 September 2027</option>
+      <option value="Week Ending 26/09/2027">26 September 2027</option>
+      <option value="Week Ending 03/10/2027">3 October 2027</option>
+      <option value="Week Ending 10/10/2027">10 October 2027</option>
+      <option value="Week Ending 17/10/2027">17 October 2027</option>
+      <option value="Week Ending 24/10/2027">24 October 2027</option>
+      <option value="Week Ending 31/10/2027">31 October 2027</option>
+      <option value="Week Ending 07/11/2027">7 November 2027</option>
+      <option value="Week Ending 14/11/2027">14 November 2027</option>
+      <option value="Week Ending 21/11/2027">21 November 2027</option>
+      <option value="Week Ending 28/11/2027">28 November 2027</option>
+      <option value="Week Ending 05/12/2027">5 December 2027</option>
+      <option value="Week Ending 12/12/2027">12 December 2027</option>
+      <option value="Week Ending 19/12/2027">19 December 2027</option>
+      <option value="Week Ending 26/12/2027">26 December 2027</option>
+      <option value="Week Ending 02/01/2028">2 January 2028</option>
+      <option value="Week Ending 09/01/2028">9 January 2028</option>
+      <option value="Week Ending 16/01/2028">16 January 2028</option>
+      <option value="Week Ending 23/01/2028">23 January 2028</option>
+      <option value="Week Ending 30/01/2028">30 January 2028</option>
+      <option value="Week Ending 06/02/2028">6 February 2028</option>
+      <option value="Week Ending 13/02/2028">13 February 2028</option>
+      <option value="Week Ending 20/02/2028">20 February 2028</option>
+      <option value="Week Ending 27/02/2028">27 February 2028</option>
+      <option value="Week Ending 05/03/2028">5 March 2028</option>
+      <option value="Week Ending 12/03/2028">12 March 2028</option>
+      <option value="Week Ending 19/03/2028">19 March 2028</option>
+      <option value="Week Ending 26/03/2028">26 March 2028</option>
+      <option value="Week Ending 02/04/2028">2 April 2028</option>
+      <option value="Week Ending 09/04/2028">9 April 2028</option>
+      <option value="Week Ending 16/04/2028">16 April 2028</option>
+      <option value="Week Ending 23/04/2028">23 April 2028</option>
+      <option value="Week Ending 30/04/2028">30 April 2028</option>
+      <option value="Week Ending 07/05/2028">7 May 2028</option>
+      <option value="Week Ending 14/05/2028">14 May 2028</option>
+      <option value="Week Ending 21/05/2028">21 May 2028</option>
+      <option value="Week Ending 28/05/2028">28 May 2028</option>
+      <option value="Week Ending 04/06/2028">4 June 2028</option>
+      <option value="Week Ending 11/06/2028">11 June 2028</option>
+      <option value="Week Ending 18/06/2028">18 June 2028</option>
+      <option value="Week Ending 25/06/2028">25 June 2028</option>
+      <option value="Week Ending 02/07/2028">2 July 2028</option>
+      <option value="Week Ending 09/07/2028">9 July 2028</option>
+      <option value="Week Ending 16/07/2028">16 July 2028</option>
+      <option value="Week Ending 23/07/2028">23 July 2028</option>
+      <option value="Week Ending 30/07/2028">30 July 2028</option>
+      <option value="Week Ending 06/08/2028">6 August 2028</option>
+      <option value="Week Ending 13/08/2028">13 August 2028</option>
+      <option value="Week Ending 20/08/2028">20 August 2028</option>
+      <option value="Week Ending 27/08/2028">27 August 2028</option>
+      <option value="Week Ending 03/09/2028">3 September 2028</option>
+      <option value="Week Ending 10/09/2028">10 September 2028</option>
+      <option value="Week Ending 17/09/2028">17 September 2028</option>
+      <option value="Week Ending 24/09/2028">24 September 2028</option>
+      <option value="Week Ending 01/10/2028">1 October 2028</option>
+      <option value="Week Ending 08/10/2028">8 October 2028</option>
+      <option value="Week Ending 15/10/2028">15 October 2028</option>
+      <option value="Week Ending 22/10/2028">22 October 2028</option>
+      <option value="Week Ending 29/10/2028">29 October 2028</option>
+      <option value="Week Ending 05/11/2028">5 November 2028</option>
+      <option value="Week Ending 12/11/2028">12 November 2028</option>
+      <option value="Week Ending 19/11/2028">19 November 2028</option>
+      <option value="Week Ending 26/11/2028">26 November 2028</option>
+      <option value="Week Ending 03/12/2028">3 December 2028</option>
+      <option value="Week Ending 10/12/2028">10 December 2028</option>
+      <option value="Week Ending 17/12/2028">17 December 2028</option>
+      <option value="Week Ending 24/12/2028">24 December 2028</option>
+      <option value="Week Ending 31/12/2028">31 December 2028</option>
+      <option value="Week Ending 07/01/2029">7 January 2029</option>
+      <option value="Week Ending 14/01/2029">14 January 2029</option>
+      <option value="Week Ending 21/01/2029">21 January 2029</option>
+      <option value="Week Ending 28/01/2029">28 January 2029</option>
+      <option value="Week Ending 04/02/2029">4 February 2029</option>
+      <option value="Week Ending 11/02/2029">11 February 2029</option>
+      <option value="Week Ending 18/02/2029">18 February 2029</option>
+      <option value="Week Ending 25/02/2029">25 February 2029</option>
+      <option value="Week Ending 04/03/2029">4 March 2029</option>
+      <option value="Week Ending 11/03/2029">11 March 2029</option>
+      <option value="Week Ending 18/03/2029">18 March 2029</option>
+      <option value="Week Ending 25/03/2029">25 March 2029</option>
+      <option value="Week Ending 01/04/2029">1 April 2029</option>
+      <option value="Week Ending 08/04/2029">8 April 2029</option>
+      <option value="Week Ending 15/04/2029">15 April 2029</option>
+      <option value="Week Ending 22/04/2029">22 April 2029</option>
+      <option value="Week Ending 29/04/2029">29 April 2029</option>
+      <option value="Week Ending 06/05/2029">6 May 2029</option>
+      <option value="Week Ending 13/05/2029">13 May 2029</option>
+      <option value="Week Ending 20/05/2029">20 May 2029</option>
+      <option value="Week Ending 27/05/2029">27 May 2029</option>
+      <option value="Week Ending 03/06/2029">3 June 2029</option>
+      <option value="Week Ending 10/06/2029">10 June 2029</option>
+      <option value="Week Ending 17/06/2029">17 June 2029</option>
+      <option value="Week Ending 24/06/2029">24 June 2029</option>
+      <option value="Week Ending 01/07/2029">1 July 2029</option>
+      <option value="Week Ending 08/07/2029">8 July 2029</option>
+      <option value="Week Ending 15/07/2029">15 July 2029</option>
+      <option value="Week Ending 22/07/2029">22 July 2029</option>
+      <option value="Week Ending 29/07/2029">29 July 2029</option>
+      <option value="Week Ending 05/08/2029">5 August 2029</option>
+      <option value="Week Ending 12/08/2029">12 August 2029</option>
+      <option value="Week Ending 19/08/2029">19 August 2029</option>
+      <option value="Week Ending 26/08/2029">26 August 2029</option>
+      <option value="Week Ending 02/09/2029">2 September 2029</option>
+      <option value="Week Ending 09/09/2029">9 September 2029</option>
+      <option value="Week Ending 16/09/2029">16 September 2029</option>
+      <option value="Week Ending 23/09/2029">23 September 2029</option>
+      <option value="Week Ending 30/09/2029">30 September 2029</option>
+      <option value="Week Ending 07/10/2029">7 October 2029</option>
+      <option value="Week Ending 14/10/2029">14 October 2029</option>
+      <option value="Week Ending 21/10/2029">21 October 2029</option>
+      <option value="Week Ending 28/10/2029">28 October 2029</option>
+      <option value="Week Ending 04/11/2029">4 November 2029</option>
+      <option value="Week Ending 11/11/2029">11 November 2029</option>
+      <option value="Week Ending 18/11/2029">18 November 2029</option>
+      <option value="Week Ending 25/11/2029">25 November 2029</option>
+      <option value="Week Ending 02/12/2029">2 December 2029</option>
+      <option value="Week Ending 09/12/2029">9 December 2029</option>
+      <option value="Week Ending 16/12/2029">16 December 2029</option>
+      <option value="Week Ending 23/12/2029">23 December 2029</option>
+      <option value="Week Ending 30/12/2029">30 December 2029</option>
+      <option value="Week Ending 06/01/2030">6 January 2030</option>
+      <option value="Week Ending 13/01/2030">13 January 2030</option>
+      <option value="Week Ending 20/01/2030">20 January 2030</option>
+      <option value="Week Ending 27/01/2030">27 January 2030</option>
+      <option value="Week Ending 03/02/2030">3 February 2030</option>
+      <option value="Week Ending 10/02/2030">10 February 2030</option>
+      <option value="Week Ending 17/02/2030">17 February 2030</option>
+      <option value="Week Ending 24/02/2030">24 February 2030</option>
+      <option value="Week Ending 03/03/2030">3 March 2030</option>
+      <option value="Week Ending 10/03/2030">10 March 2030</option>
+      <option value="Week Ending 17/03/2030">17 March 2030</option>
+      <option value="Week Ending 24/03/2030">24 March 2030</option>
+      <option value="Week Ending 31/03/2030">31 March 2030</option>
+      <option value="Week Ending 07/04/2030">7 April 2030</option>
+      <option value="Week Ending 14/04/2030">14 April 2030</option>
+      <option value="Week Ending 21/04/2030">21 April 2030</option>
+      <option value="Week Ending 28/04/2030">28 April 2030</option>
+      <option value="Week Ending 05/05/2030">5 May 2030</option>
+      <option value="Week Ending 12/05/2030">12 May 2030</option>
+      <option value="Week Ending 19/05/2030">19 May 2030</option>
+      <option value="Week Ending 26/05/2030">26 May 2030</option>
+      <option value="Week Ending 02/06/2030">2 June 2030</option>
+      <option value="Week Ending 09/06/2030">9 June 2030</option>
+      <option value="Week Ending 16/06/2030">16 June 2030</option>
+      <option value="Week Ending 23/06/2030">23 June 2030</option>
+      <option value="Week Ending 30/06/2030">30 June 2030</option>
+      <option value="Week Ending 07/07/2030">7 July 2030</option>
+      <option value="Week Ending 14/07/2030">14 July 2030</option>
+      <option value="Week Ending 21/07/2030">21 July 2030</option>
+      <option value="Week Ending 28/07/2030">28 July 2030</option>
+      <option value="Week Ending 04/08/2030">4 August 2030</option>
+      <option value="Week Ending 11/08/2030">11 August 2030</option>
+      <option value="Week Ending 18/08/2030">18 August 2030</option>
+      <option value="Week Ending 25/08/2030">25 August 2030</option>
+      <option value="Week Ending 01/09/2030">1 September 2030</option>
+      <option value="Week Ending 08/09/2030">8 September 2030</option>
+      <option value="Week Ending 15/09/2030">15 September 2030</option>
+      <option value="Week Ending 22/09/2030">22 September 2030</option>
+      <option value="Week Ending 29/09/2030">29 September 2030</option>
+      <option value="Week Ending 06/10/2030">6 October 2030</option>
+      <option value="Week Ending 13/10/2030">13 October 2030</option>
+      <option value="Week Ending 20/10/2030">20 October 2030</option>
+      <option value="Week Ending 27/10/2030">27 October 2030</option>
+      <option value="Week Ending 03/11/2030">3 November 2030</option>
+      <option value="Week Ending 10/11/2030">10 November 2030</option>
+      <option value="Week Ending 17/11/2030">17 November 2030</option>
+      <option value="Week Ending 24/11/2030">24 November 2030</option>
+      <option value="Week Ending 01/12/2030">1 December 2030</option>
+      <option value="Week Ending 08/12/2030">8 December 2030</option>
+      <option value="Week Ending 15/12/2030">15 December 2030</option>
+      <option value="Week Ending 22/12/2030">22 December 2030</option>
+    </select>
   </div>
+
+  <input type="hidden" id="threshLow" value="5">
+  <input type="hidden" id="threshHigh" value="12">
+  <div class="file-inputs">
     <div class="file-slot" id="slot-adj">
       <label>Stock Adjustments</label>
       <input type="file" id="fileAdj" />
@@ -564,6 +775,11 @@
       <label>Sales &amp; Stock Profit Report</label>
       <input type="file" id="fileProfit" />
       <div class="status" id="status-profit">No file selected (optional)</div>
+    </div>
+    <div class="file-slot" id="slot-config">
+      <label>Site Target Bands (Optional)</label>
+      <input type="file" id="fileConfig" />
+      <div class="status" id="status-config">No file selected (optional)</div>
     </div>
   </div>
 
@@ -728,7 +944,7 @@
 </div>
 
 <script>
-const files = { adj: null, sales: null, profit: null };
+const files = { adj: null, sales: null, profit: null, config: null };
 let charts = {};
 let lastMerged = [];
 let lastBranch = '';
@@ -755,8 +971,111 @@ const SITE_TARGETS = {
   'vivian':     16,
 };
 
+// Hardcoded per-site band config (fallback if no config file uploaded)
+const SITE_BANDS = {
+  'broadway':    { low: 8,  high: 16 },
+  'high st':     { low: 8,  high: 22 },
+  'hutt rd':     { low: 8,  high: 22 },
+  'kapiti':      { low: 8,  high: 24 },
+  'kilbirnie':   { low: 15, high: 30 },
+  'levin':       { low: 8,  high: 22 },
+  'mana':        { low: 10, high: 30 },
+  'miramar':     { low: 8,  high: 24 },
+  'pito one':    { low: 5,  high: 12 },
+  'seaview':     { low: 8,  high: 17 },
+  'remutaka':    { low: 3,  high:  8 },
+  'taranaki':    { low: 8,  high: 17 },
+  'trentham':    { low: 8,  high: 16 },
+  'vic':         { low: 8,  high: 16 },
+  'vivian':      { low: 8,  high: 16 },
+};
+
+function getSiteBands(branchName) {
+  const lower = (branchName || '').toLowerCase();
+  for (const [key, bands] of Object.entries(SITE_BANDS)) {
+    if (lower.includes(key)) return bands;
+  }
+  return null;
+}
+
+// When site is selected from dropdown, auto-fill threshold inputs
+function onSiteChange() {
+  const site = document.getElementById('branchName').value;
+  if (!site) return;
+  // Try config file data first, then hardcoded
+  const configData = window._siteConfigData;
+  let bands = null;
+  if (configData) {
+    const lower = site.toLowerCase();
+    for (const [name, data] of Object.entries(configData)) {
+      if (lower.includes(name.toLowerCase().replace('z ', '')) ||
+          name.toLowerCase() === lower) {
+        bands = data;
+        break;
+      }
+    }
+  }
+  if (!bands) bands = getSiteBands(site);
+  if (bands) {
+    document.getElementById('threshLow').value = bands.low;
+    document.getElementById('threshHigh').value = bands.high;
+  }
+  // Also auto-fill target from SITE_TARGETS
+  const target = getSiteTarget(site);
+  // (target is used at analysis time, no separate input needed)
+}
+
+// Parse uploaded config Excel file
+async function parseConfig(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+        const config = {};
+        // Find header row — look for 'Site' in col 0
+        let dataStart = -1;
+        for (let i = 0; i < rows.length; i++) {
+          if (rows[i] && String(rows[i][0]).trim().toLowerCase() === 'site') {
+            dataStart = i + 1;
+            break;
+          }
+        }
+        if (dataStart === -1) { resolve(null); return; }
+        for (let i = dataStart; i < rows.length; i++) {
+          const r = rows[i];
+          if (!r || !r[0]) continue;
+          const site = String(r[0]).trim();
+          const target = parseFloat(r[1]);
+          const low = parseFloat(r[2]);
+          const high = parseFloat(r[3]);
+          if (site && !isNaN(low) && !isNaN(high)) {
+            config[site] = { target: isNaN(target) ? null : target, low, high };
+          }
+        }
+        resolve(config);
+      } catch { resolve(null); }
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsArrayBuffer(file);
+  });
+}
+
 function getSiteTarget(branchName) {
   const lower = (branchName || '').toLowerCase();
+  // Check config file data first
+  const configData = window._siteConfigData;
+  if (configData) {
+    for (const [name, data] of Object.entries(configData)) {
+      if (lower.includes(name.toLowerCase().replace('z ', '').trim()) ||
+          name.toLowerCase() === lower) {
+        if (data.target !== null && data.target !== undefined) return data.target;
+      }
+    }
+  }
+  // Fall back to hardcoded
   for (const [key, target] of Object.entries(SITE_TARGETS)) {
     if (lower.includes(key)) return target;
   }
@@ -977,8 +1296,7 @@ function downloadExcel() {
 
   const branchSlug = lastBranch.replace(/[^a-z0-9]/gi, '_');
   const rmv = document.getElementById('reportMonth').value;
-  const ryv = document.getElementById('reportYear').value;
-  const periodSlug = (rmv && ryv) ? rmv + '_' + ryv : new Date().toISOString().slice(0,7);
+  const periodSlug = rmv ? rmv.replace(/[^a-z0-9]/gi, '_') : new Date().toISOString().slice(0,7);
   XLSX.writeFile(wb, `Weekly_Wastage_vs_Sales_${branchSlug}_${periodSlug}.xlsx`);
 }
 
@@ -989,7 +1307,8 @@ window.addEventListener('load', function() {
   [
     { id: 'fileAdj',    key: 'adj' },
     { id: 'fileSales',  key: 'sales' },
-    { id: 'fileProfit', key: 'profit' }
+    { id: 'fileProfit', key: 'profit' },
+    { id: 'fileConfig', key: 'config' }
   ].forEach(function(item) {
     var input = document.getElementById(item.id);
     if (!input) return;
@@ -1214,6 +1533,8 @@ async function runAnalysis() {
   const adjFile = (files.adj) || (adjInput.files && adjInput.files[0]);
   const salesFile = (files.sales) || (salesInput.files && salesInput.files[0]);
   const profitFile = (files.profit) || (profitInput.files && profitInput.files[0]);
+  const configInput = document.getElementById('fileConfig');
+  const configFile = (files.config) || (configInput.files && configInput.files[0]);
 
   if (!adjFile || !salesFile) {
     showError('Please select both the Stock Adjustments and Product Sales Summary files before running.');
@@ -1229,6 +1550,24 @@ async function runAnalysis() {
   document.getElementById('runBtn').textContent = 'Analysing…';
 
   try {
+    // Load config file if present and apply site bands
+    if (configFile) {
+      const configData = await parseConfig(configFile);
+      if (configData) {
+        window._siteConfigData = configData;
+        const siteName = document.getElementById('branchName').value;
+        const lower = siteName.toLowerCase();
+        for (const [name, data] of Object.entries(configData)) {
+          if (lower.includes(name.toLowerCase().replace('z ', '').trim()) ||
+              name.toLowerCase() === lower) {
+            if (data.low) document.getElementById('threshLow').value = data.low;
+            if (data.high) document.getElementById('threshHigh').value = data.high;
+            break;
+          }
+        }
+      }
+    }
+
     const [adjRows, salesRows, profitRows] = await Promise.all([
       readXLS(adjFile),
       readXLS(salesFile),
@@ -1302,9 +1641,7 @@ async function runAnalysis() {
     lastTotals = { totalSold, totalWasted, overallUnitPct, totalSalesEx, totalWasteCost, overallCostPct, totalSalesCost };
 
     const reportMonth = document.getElementById('reportMonth').value;
-    const reportYear = document.getElementById('reportYear').value;
-    const reportPeriod = (reportMonth && reportYear) ? reportMonth + ' ' + reportYear
-                       : reportMonth || reportYear || '';
+    const reportPeriod = reportMonth || '';
 
     // Read selectable thresholds
     const threshLow  = parseFloat(document.getElementById('threshLow').value)  || 5;
@@ -1675,10 +2012,7 @@ function generateSummary() {
   };
 
   const reportMonthVal = document.getElementById('reportMonth').value;
-  const reportYearVal = document.getElementById('reportYear').value;
-  const reportPeriod = (reportMonthVal && reportYearVal) ? reportMonthVal + ' ' + reportYearVal
-                     : reportMonthVal || reportYearVal
-                     || new Date().toLocaleDateString('en-NZ', { month: 'long', year: 'numeric' });
+  const reportPeriod = reportMonthVal || new Date().toLocaleDateString('en-NZ', { month: 'long', year: 'numeric' });
 
   let html = '';
 
