@@ -612,6 +612,10 @@
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
       Print / PDF
     </button>
+    <button class="btn-outline no-print" onclick="exportTrendSnapshot()" id="exportTrendBtn" title="Save this period's data as a JSON snapshot for the Network Trend Analyser">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-15"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Save Trend Snapshot
+    </button>
   </div>
 
   <div class="metrics" id="networkMetrics"></div>
@@ -989,6 +993,127 @@ function printReport() {
   const restore = () => { document.title = originalTitle; window.removeEventListener('afterprint', restore); };
   window.addEventListener('afterprint', restore);
   window.print();
+}
+
+// ─── TREND SNAPSHOT EXPORT ───────────────────────────────────────────────────
+function exportTrendSnapshot() {
+  if (!networkData || networkData.length === 0) return;
+
+  const month = document.getElementById('reportMonth').value;
+  const year  = document.getElementById('reportYear').value;
+
+  // Build a period key: "2026-04" for monthly, or ISO week for weekly
+  // Monthly cadence: derive from month/year selectors
+  const MONTH_MAP = {
+    January:'01',February:'02',March:'03',April:'04',May:'05',June:'06',
+    July:'07',August:'08',September:'09',October:'10',November:'11',December:'12'
+  };
+  const monthNum = MONTH_MAP[month] || '';
+  const periodKey = (year && monthNum) ? year + '-' + monthNum : (year || month || 'unknown');
+  const periodLabel = [month, year].filter(Boolean).join(' ') || 'Unknown Period';
+
+  // Build per-site snapshots
+  const sites = networkData.map(d => {
+    // Aggregate categories from SKU-level data
+    const catMap = {};
+    for (const sku of (d.skus || [])) {
+      const cat = sku.cat || 'snacks';
+      if (!catMap[cat]) catMap[cat] = { wasteCost: 0, salesEx: 0, unitsWasted: 0, unitsSold: 0 };
+      catMap[cat].wasteCost   += sku.wasteCost  || 0;
+      catMap[cat].salesEx     += sku.salesEx    || 0;
+      catMap[cat].unitsWasted += sku.wasted     || 0;
+      catMap[cat].unitsSold   += sku.sold       || 0;
+    }
+    // Compute costWastePct per category
+    const categories = {};
+    for (const [cat, v] of Object.entries(catMap)) {
+      categories[cat] = {
+        label:        CAT_LABELS[cat] || cat,
+        wasteCost:    Math.round(v.wasteCost * 100) / 100,
+        salesEx:      Math.round(v.salesEx * 100) / 100,
+        costWastePct: v.salesEx > 0 ? Math.round(v.wasteCost / v.salesEx * 1000) / 10 : null,
+        unitsWasted:  v.unitsWasted,
+        unitsSold:    v.unitsSold
+      };
+    }
+
+    // Top 20 SKUs by waste cost (repeat-offender tracking)
+    const topSkus = [...(d.skus || [])]
+      .sort((a, b) => (b.wasteCost || 0) - (a.wasteCost || 0))
+      .slice(0, 20)
+      .map(s => ({
+        sku:          s.sku,
+        desc:         s.desc,
+        cat:          s.cat || 'snacks',
+        unitsSold:    s.sold       || 0,
+        unitsWasted:  s.wasted     || 0,
+        unitWastePct: s.unitPct    || 0,
+        wasteCost:    Math.round((s.wasteCost || 0) * 100) / 100,
+        salesEx:      Math.round((s.salesEx   || 0) * 100) / 100,
+        costWastePct: s.salesPct   || null
+      }));
+
+    return {
+      site:         d.branch,
+      siteSlug:     d.branch.toLowerCase().replace(/[^a-z0-9]+/g, '_'),
+      target:       d.target,
+      unitsSold:    d.totalSold,
+      unitsWasted:  d.totalWasted,
+      unitWastePct: d.overallUnitPct,
+      wasteCost:    Math.round(d.totalWasteCost * 100) / 100,
+      salesEx:      Math.round(d.totalSalesEx  * 100) / 100,
+      costWastePct: d.overallCostPct,
+      vsTarget:     d.target !== null ? Math.round((d.overallCostPct - d.target) * 10) / 10 : null,
+      onTarget:     d.target !== null ? d.overallCostPct <= d.target : null,
+      categories,
+      topSkus
+    };
+  });
+
+  // The snapshot object — one per network run, one period
+  const snapshot = {
+    _version:    2,
+    cadence:     'monthly',
+    periodKey,
+    periodLabel,
+    generatedAt: new Date().toISOString(),
+    networkSummary: {
+      siteCount:       sites.length,
+      totalUnitsSold:  sites.reduce((s, d) => s + d.unitsSold, 0),
+      totalWasteCost:  Math.round(sites.reduce((s, d) => s + d.wasteCost, 0) * 100) / 100,
+      totalSalesEx:    Math.round(sites.reduce((s, d) => s + d.salesEx, 0) * 100) / 100,
+      netCostWastePct: (() => {
+        const wc = sites.reduce((s, d) => s + d.wasteCost, 0);
+        const sx = sites.reduce((s, d) => s + d.salesEx, 0);
+        return sx > 0 ? Math.round(wc / sx * 1000) / 10 : null;
+      })(),
+      onTargetCount:   sites.filter(d => d.onTarget === true).length,
+      aboveTargetCount:sites.filter(d => d.onTarget === false).length
+    },
+    sites
+  };
+
+  // Serialise and download
+  const json   = JSON.stringify(snapshot, null, 2);
+  const blob   = new Blob([json], { type: 'application/json' });
+  const url    = URL.createObjectURL(blob);
+  const a      = document.createElement('a');
+  a.href       = url;
+  // Filename: "Network Trend - April 2026.json"
+  const friendlyName = [month, year].filter(Boolean).join(' ');
+  a.download   = 'Network Trend - ' + (friendlyName || periodKey) + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  // Brief visual confirmation on the button
+  const btn = document.getElementById('exportTrendBtn');
+  const orig = btn.innerHTML;
+  btn.innerHTML = '&#10003; Saved ' + periodLabel;
+  btn.style.color = 'var(--accent)';
+  btn.style.borderColor = 'var(--accent)';
+  setTimeout(() => { btn.innerHTML = orig; btn.style.color = ''; btn.style.borderColor = ''; }, 3000);
 }
 
 // ─── NETWORK METRICS ─────────────────────────────────────────────────────────
