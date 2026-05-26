@@ -1767,11 +1767,11 @@ async function runAnalysis() {
 
     const datalabelDefaults = {
       anchor: 'end',
-      align: 'end',
+      align: 'start',
       clamp: true,
-      font: { family: 'DM Mono', size: 10, weight: '500' },
-      color: '#444',
-      padding: { left: 4 }
+      font: { family: 'DM Mono', size: 11, weight: '700' },
+      color: '#ffffff',
+      padding: { right: 8 }
     };
 
     charts['unitChart'] = new Chart(document.getElementById('unitChart'), {
@@ -1787,7 +1787,7 @@ async function runAnalysis() {
       },
       options: {
         indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-        layout: { padding: { right: 48 } },
+        layout: { padding: { right: 8 } },
         plugins: {
           legend: { display: false },
           datalabels: { ...datalabelDefaults, formatter: v => v + '%' },
@@ -1810,13 +1810,13 @@ async function runAnalysis() {
         labels: bySalesPct.map(r => r.desc.length > 28 ? r.desc.slice(0, 27) + '…' : r.desc),
         datasets: [{
           data: bySalesPct.map(r => r.salesPct),
-          backgroundColor: bySalesPct.map(r => getBarColor(r.salesPct || 0)),
+          backgroundColor: bySalesPct.map(r => getBarColor(r.unitPct)),
           borderWidth: 0, borderRadius: 3
         }]
       },
       options: {
         indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-        layout: { padding: { right: 48 } },
+        layout: { padding: { right: 8 } },
         plugins: {
           legend: { display: false },
           datalabels: { ...datalabelDefaults, formatter: v => v + '%' },
@@ -1847,7 +1847,7 @@ async function runAnalysis() {
       },
       options: {
         indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-        layout: { padding: { right: 64 } },
+        layout: { padding: { right: 8 } },
         plugins: {
           legend: { display: false },
           datalabels: { ...datalabelDefaults, formatter: v => '$' + v.toFixed(2) },
@@ -1941,17 +1941,48 @@ function renderFullTable(data) {
   });
 
   let lastCat = null;
-  let catIndex = -1; // increments each time category changes, used for alternating shade
+  let catIndex = -1;
+  let catRows = []; // accumulate rows per category for subtotals
+
+  function flushCatSubtotal(cat, rows, isShaded) {
+    if (!rows.length) return;
+    const totalWasteCost = rows.reduce((s, r) => s + r.wasteCost, 0);
+    const totalSold      = rows.reduce((s, r) => s + r.sold, 0);
+    const totalWasted    = rows.reduce((s, r) => s + r.wasted, 0);
+    const totalSalesEx   = rows.reduce((s, r) => s + (r.salesEx || 0), 0);
+    const subtotalBg     = isShaded ? '#dedad3' : '#e6e3dc';
+    const tr = document.createElement('tr');
+    tr.dataset.cat = cat;
+    tr.dataset.band = 'all';
+    tr.dataset.shade = isShaded ? '1' : '0';
+    tr.style.background = subtotalBg;
+    tr.innerHTML = `
+      <td colspan="3" style="font-size:11px;font-family:var(--mono);font-weight:700;color:#444;padding:5px 12px;-webkit-print-color-adjust:exact;print-color-adjust:exact;">
+        ${CAT_LABELS[cat] || cat} subtotal&nbsp;<span style="font-weight:400;color:var(--text3);">${rows.length} SKU${rows.length !== 1 ? 's' : ''}</span>
+      </td>
+      <td style="font-weight:700;font-family:var(--mono);font-size:11px;">${totalSold.toLocaleString()}</td>
+      <td style="font-weight:700;font-family:var(--mono);font-size:11px;">${totalWasted.toLocaleString()}</td>
+      <td colspan="2"></td>
+      <td style="font-weight:700;font-family:var(--mono);font-size:11px;">$${totalWasteCost.toFixed(2)}</td>
+      <td style="font-weight:700;font-family:var(--mono);font-size:11px;">${totalSalesEx > 0 ? '$' + totalSalesEx.toFixed(2) : '—'}</td>
+      <td></td>
+    `;
+    tbody.appendChild(tr);
+  }
 
   for (const r of sorted) {
     const pct = r.salesPct !== null ? r.salesPct : null;
     const pillClass = pct !== null ? getPillClass(pct) : 'pill-ok';
     const bc = BAND_CONFIG[r.band] || BAND_CONFIG.ok;
 
-    // New category — insert divider and toggle shade
+    // New category — flush subtotal for previous category, then insert divider
     if (r.cat !== lastCat) {
+      if (lastCat !== null) {
+        flushCatSubtotal(lastCat, catRows, catIndex % 2 === 1);
+      }
       lastCat = r.cat;
       catIndex++;
+      catRows = [];
       const isShaded = catIndex % 2 === 1;
       const dividerBg = isShaded ? '#e8e6e1' : '#f0ede8';
       const divider = document.createElement('tr');
@@ -1983,6 +2014,11 @@ function renderFullTable(data) {
       <td>${pct !== null ? '<span class="pill ' + pillClass + '">' + pct + '%</span>' : '—'}</td>
     `;
     tbody.appendChild(tr);
+    catRows.push(r);
+  }
+  // Flush subtotal for the final category
+  if (lastCat !== null) {
+    flushCatSubtotal(lastCat, catRows, catIndex % 2 === 1);
   }
 }
 
