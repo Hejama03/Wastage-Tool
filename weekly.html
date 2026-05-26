@@ -1379,24 +1379,34 @@ function toNum(val) {
 }
 
 function parseAdjustments(rows, branchName) {
-  // Find the branch section
-  // Row format: Date/Time, Reference, UPC, SKU, User, Description, Cost, Quantity, Ext Cost
-  // Find header row index
   let dataRows = [];
   let skippedRows = [];
   let upcToSku = {};
   let inBranch = false;
   let targetBranch = branchName ? branchName.toLowerCase() : null;
 
+  // Detect format: monthly=9 cols (col7=Qty, col8=ExtCost), weekly=8 cols (col6=Qty, col7=ExtCost)
+  // Also: monthly branch header has "Branch:" in col0 + name in col1
+  //        weekly branch header has "Branch: 189  Z Broadway" all in col0
+  const headerRow = rows[0] ? rows[0].map(c => String(c || '').trim()) : [];
+  const isWeekly = headerRow.length <= 8 || headerRow[6] === 'Quantity';
+  const qtyCol  = isWeekly ? 6 : 7;
+  const costCol = isWeekly ? 7 : 8;
+
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
     if (!r) continue;
     const r0 = String(r[0] || '').trim();
     const r1 = String(r[1] || '').trim();
+    const r2 = String(r[2] || '').trim();
 
     // Detect branch header
-    if (r0 === 'Branch:') {
-      if (!targetBranch || r1.toLowerCase().includes(targetBranch) || targetBranch === '') {
+    if (r0.startsWith('Branch:')) {
+      const branchLabel = isWeekly
+        ? r0.replace('Branch:', '').replace(/^\s*\d+\s*/,'').trim().toLowerCase()
+        : r1.toLowerCase();
+      const target = (targetBranch || '').replace('z ', '').trim();
+      if (!targetBranch || branchLabel.includes(target) || branchLabel.includes(targetBranch)) {
         inBranch = true;
       } else {
         inBranch = false;
@@ -1404,19 +1414,22 @@ function parseAdjustments(rows, branchName) {
       continue;
     }
 
-    // Detect end of branch
+    if (!inBranch) continue;
+
+    // End of branch — monthly: "Total" in col0, weekly: "Totals for" in col2
     if (r0 === 'Total' && inBranch) {
-      if (!targetBranch) inBranch = true; // keep going for all branches
+      if (!targetBranch) inBranch = true;
+      else break;
+    }
+    if (r2.startsWith('Totals for') && inBranch) {
+      if (!targetBranch) inBranch = true;
       else break;
     }
 
-    if (!inBranch) continue;
-
-    // Skip non-data rows
-    const qty = toNum(r[7]);
-    const cost = toNum(r[8]);
-    const sku = toSku(r[3]);
-    const upc = toSku(r[2]); // UPC is column 2
+    const qty  = toNum(r[qtyCol]);
+    const cost = toNum(r[costCol]);
+    const sku  = toSku(r[3]);
+    const upc  = toSku(r[2]);
 
     if (!sku || sku === '' || sku === 'SKU' || sku === 'null') continue;
     if (qty === null) continue;
@@ -1424,14 +1437,12 @@ function parseAdjustments(rows, branchName) {
     const desc = String(r[5] || '').trim();
     if (!desc || desc === 'Description') continue;
 
-    // Sanity check: reject obviously corrupt rows (|qty| > 10,000 on a single adjustment is a data error)
     if (Math.abs(qty) > 10000) {
-      console.warn(`Skipping outlier row — SKU ${sku} "${desc}" qty=${qty} (likely corrupt/bad data in source file)`);
+      console.warn('Skipping outlier — SKU ' + sku + ' qty=' + qty);
       skippedRows.push({ sku, desc, qty });
       continue;
     }
 
-    // Build UPC → SKU lookup (some products use UPC in sales file, SKU in adjustments)
     if (upc && upc !== sku && !upcToSku[upc]) {
       upcToSku[upc] = sku;
     }
@@ -1446,19 +1457,35 @@ function parseSales(rows, upcToSku) {
   const sales = {};
   let started = false;
 
+  // Detect format:
+  // Monthly: row0=report header, row1='Product Code'/'Branch'/'Description' etc, data starts after 'Branch' row
+  // Weekly:  row0='Product Code' header, row1='Branch: Z Broadway' in col0, then SubDepartment/Class rows, then data
+  const r0h = String(rows[0] ? rows[0][0] : '').trim();
+  const isWeekly = r0h === 'Product Code';
+
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
     if (!r) continue;
     const r0 = String(r[0] || '').trim();
 
-    if (r0 === 'Branch') { started = true; continue; }
+    // Skip header rows
+    if (r0 === 'Product Code' || r0 === 'Description') continue;
+
+    // Branch detection
+    if (isWeekly) {
+      // Weekly: "Branch: Z Broadway" in col0 triggers start, SubDepartment/Class rows skipped
+      if (r0.startsWith('Branch:')) { started = true; continue; }
+      if (r0.startsWith('SubDepartment:') || r0.startsWith('Class:')) continue;
+    } else {
+      // Monthly: "Branch" in col0 triggers start
+      if (r0 === 'Branch') { started = true; continue; }
+    }
+
     if (!started) continue;
-    if (r0 === 'Totals:' || r0.includes('Totals')) continue;
+    if (r0.includes('Totals') || r0 === 'Totals:') continue;
 
     let sku = toSku(r[0]);
     if (!sku || sku === '' || sku === 'null') continue;
-
-    // If this code is a UPC that maps to a known SKU, use the SKU instead
     if (upcToSku[sku]) sku = upcToSku[sku];
 
     const qty = toNum(r[2]);
@@ -1472,9 +1499,9 @@ function parseSales(rows, upcToSku) {
 }
 
 function parseProfit(rows, branchName) {
-  // Format: col0=SKU/Branch, col1=Description, col2=Net Sales Ex, col3=Sales Cost
-  // Branch total rows have 'Branch: Z XXX' in col0 with numeric values in col2/col3
-  // We want the total Sales Cost for the matched branch
+  // Monthly: col0=SKU/Branch, col1=Description, col2=Net Sales Ex, col3=Sales Cost
+  // Weekly:  col0=SKU/Branch, col1=Description, col2=Net Sales Ex, col3=Sales Cost (same cols, 10 col file)
+  // Branch total rows: "Branch: Z Broadway" in col0, col1=' ' or '', cost in col3
   const lower = (branchName || '').toLowerCase();
   let totalSalesCost = null;
 
@@ -1484,16 +1511,18 @@ function parseProfit(rows, branchName) {
     const r0 = String(r[0] || '').trim();
     const r1 = String(r[1] || '').trim();
 
-    // Total rows look like: "Branch: Z Broadway" in col0, cost in col3
-    if (r0.startsWith('Branch:') && r1 === '' && toNum(r[3]) !== null) {
-      const branchLabel = r0.replace('Branch:', '').trim().toLowerCase();
-      // Match by branch name keywords
+    if (r0.startsWith('Branch:') && toNum(r[3]) !== null) {
+      // Strip site number from weekly format e.g. "Branch: 189  Z Broadway" -> "z broadway"
+      const branchLabel = r0.replace('Branch:', '').replace(/^\s*\d+\s*/, '').trim().toLowerCase();
+      const r1label = r1.toLowerCase();
       let matched = false;
       if (lower) {
-        matched = branchLabel.includes(lower) || lower.split(' ').some(w => w.length > 2 && branchLabel.includes(w));
+        const target = lower.replace('z ', '').trim();
+        matched = branchLabel.includes(target) || branchLabel.includes(lower) ||
+                  r1label.includes(target) || r1label.includes(lower) ||
+                  lower.split(' ').some(w => w.length > 2 && (branchLabel.includes(w) || r1label.includes(w)));
       }
-      // Also try auto-match from SITE_TARGETS keys
-      if (!matched && !lower) matched = true; // if no branch specified, take first
+      if (!matched && !lower) matched = true;
       if (matched) {
         totalSalesCost = toNum(r[3]);
         break;
