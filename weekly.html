@@ -1185,11 +1185,10 @@ function filterTable() {
 
 function printReport() {
   const branch = document.getElementById('resultTitle').textContent.trim();
-  const month = document.getElementById('reportMonth').value.trim();  // e.g. "April"
-  const year = document.getElementById('reportYear').value.trim();    // e.g. "2026"
-  const period = [month, year].filter(Boolean).join(' ');
-  const parts = [branch, period].filter(Boolean);
-  document.title = 'Wastage - ' + parts.join(' - ');
+  const weekEl = document.getElementById('reportMonth');
+  const week = weekEl ? weekEl.value.trim() : '';   // e.g. "Week Ending 19/04/2026"
+  const parts = [branch, week].filter(Boolean);
+  document.title = 'Weekly Wastage - ' + parts.join(' - ');
   window.print();
 }
 
@@ -2177,7 +2176,7 @@ function generateSummary() {
   const totalPotentialSaving = actionItems.reduce((s, r) => s + r.saving, 0);
 
   if (actionItems.length) {
-    html += '<p style="color:var(--text2);font-size:12.5px;margin-bottom:0.6rem;">If the following Too High items were brought to a ' + tMid + '% unit waste rate (mid Good band ' + tLow + '–' + tHigh + '%), estimated monthly saving:</p>';
+    html += '<p style="color:var(--text2);font-size:12.5px;margin-bottom:0.6rem;">If the following Too High items were brought to a ' + tMid + '% unit waste rate (mid Good band ' + tLow + '–' + tHigh + '%), estimated weekly saving:</p>';
     html += '<ul style="margin:0 0 0.6rem 1.2rem;color:var(--text);">';
     for (const r of actionItems) {
       html += '<li><strong>' + r.desc + '</strong>';
@@ -2185,7 +2184,7 @@ function generateSummary() {
       html += ' → <strong style="color:#2d5a3d;">save ~$' + r.saving.toFixed(2) + '</strong></li>';
     }
     html += '</ul>';
-    html += '<p style="color:var(--text);font-weight:600;">Combined potential saving: <span style="color:#2d5a3d;font-size:15px;">~$' + totalPotentialSaving.toFixed(2) + '/month</span></p>';
+    html += '<p style="color:var(--text);font-weight:600;">Combined potential saving: <span style="color:#2d5a3d;font-size:15px;">~$' + totalPotentialSaving.toFixed(2) + '/week</span></p>';
   }
 
   // Also flag if too-low items represent lost sales opportunity
@@ -2197,7 +2196,7 @@ function generateSummary() {
     html += '🔼 <strong style="color:#1a6b9a;">Upside opportunity:</strong> ';
     html += missedItems.slice(0, 3).map(r => r.desc).join(', ');
     html += ' are too low on stock. Increasing these could add an estimated ';
-    html += '<strong style="color:#1a6b9a;">~$' + Math.round(estMissedRevenue).toLocaleString() + ' in additional revenue</strong> per month (based on 10% uplift).';
+    html += '<strong style="color:#1a6b9a;">~$' + Math.round(estMissedRevenue).toLocaleString() + ' in additional revenue</strong> per week (based on 10% uplift).';
     html += '</p>';
   }
 
