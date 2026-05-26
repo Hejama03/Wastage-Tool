@@ -1184,10 +1184,12 @@ function filterTable() {
 }
 
 function printReport() {
-  // Give charts a moment to settle then trigger browser print dialog
-  // The user selects "Save as PDF" in the print dialog
-  const title = document.getElementById('resultTitle').textContent;
-  document.title = `Wastage Report — ${title}`;
+  const branch = document.getElementById('resultTitle').textContent.trim();
+  const month = document.getElementById('reportMonth').value.trim();  // e.g. "April"
+  const year = document.getElementById('reportYear').value.trim();    // e.g. "2026"
+  const period = [month, year].filter(Boolean).join(' ');
+  const parts = [branch, period].filter(Boolean);
+  document.title = 'Wastage - ' + parts.join(' - ');
   window.print();
 }
 
