@@ -1,0 +1,1850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Network Trend Analyser — Z Energy C-Store</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#f5f3ee;--surface:#ffffff;--surface2:#eeece7;--border:#d8d5ce;
+  --text:#1a1916;--text2:#6b6860;--text3:#9e9b94;
+  --accent:#2d5a3d;--accent-light:#e8f0eb;
+  --warn:#8b4a0f;--warn-light:#fdf0e6;
+  --danger:#8b1a1a;--danger-light:#fdf0f0;
+  --blue:#1a6b9a;--blue-light:#dbeeff;
+  --mono:'DM Mono',monospace;--sans:'DM Sans',sans-serif;
+}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.6;}
+header{background:var(--text);color:#f5f3ee;padding:1.75rem 2.5rem;display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;}
+header h1{font-size:1.4rem;font-weight:500;letter-spacing:-0.02em;}
+header p{font-size:12px;color:#9e9b94;font-family:var(--mono);margin-top:2px;}
+header .hdr-right{font-size:11px;color:#6b6860;font-family:var(--mono);text-align:right;}
+.upload-zone{margin:2rem 2.5rem;background:var(--surface);border:1.5px dashed var(--border);border-radius:12px;padding:2.5rem 2rem;text-align:center;}
+.upload-zone h2{font-size:1rem;font-weight:500;margin-bottom:0.4rem;}
+.upload-zone p{font-size:13px;color:var(--text2);margin-bottom:1.5rem;}
+.drop-target{border:2px dashed var(--border);border-radius:10px;padding:2rem;margin:0 auto 1.5rem;max-width:560px;cursor:pointer;transition:border-color 0.2s,background 0.2s;background:var(--bg);}
+.drop-target:hover,.drop-target.drag-over{border-color:var(--accent);background:var(--accent-light);}
+.drop-target input{display:none;}
+.drop-icon{font-size:2rem;margin-bottom:0.5rem;}
+.drop-label{font-size:13px;color:var(--text2);font-family:var(--mono);}
+.drop-hint{font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:0.3rem;}
+#fileList{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:700px;margin:0 auto 1.5rem;}
+.file-chip{background:var(--accent-light);border:1px solid var(--accent);color:var(--accent);border-radius:20px;padding:4px 12px;font-size:11px;font-family:var(--mono);display:flex;align-items:center;gap:6px;}
+.file-chip button{background:none;border:none;color:var(--accent);cursor:pointer;font-size:14px;line-height:1;padding:0;opacity:0.6;}
+.file-chip button:hover{opacity:1;}
+.btn-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+.btn{background:var(--text);color:#f5f3ee;border:none;padding:10px 28px;border-radius:6px;font-family:var(--sans);font-size:14px;font-weight:500;cursor:pointer;transition:opacity 0.15s;}
+.btn:hover{opacity:0.85;}
+.btn:disabled{opacity:0.4;cursor:not-allowed;}
+.btn-outline{background:transparent;color:var(--text);border:1.5px solid var(--border);padding:7px 16px;border-radius:6px;font-family:var(--sans);font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;transition:border-color 0.15s,background 0.15s;white-space:nowrap;}
+.btn-outline:hover{border-color:var(--accent);background:var(--accent-light);color:var(--accent);}
+.btn-outline.save-btn{border-color:var(--accent);color:var(--accent);}
+.btn-outline.save-btn:hover{background:var(--accent);color:#fff;}
+.error-msg{background:var(--danger-light);border:1px solid var(--danger);color:var(--danger);border-radius:8px;padding:0.75rem 1rem;font-size:13px;font-family:var(--mono);margin-top:1rem;}
+#results{display:none;padding:0 2.5rem 3rem;}
+.results-header{display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+.results-header h2{font-size:1.2rem;font-weight:600;letter-spacing:-0.01em;}
+.results-header .meta{font-size:12px;font-family:var(--mono);color:var(--text3);flex:1;}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:2rem;}
+.metric{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.9rem 1.1rem;}
+.metric .label{font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:3px;}
+.metric .value{font-size:1.4rem;font-weight:500;letter-spacing:-0.02em;}
+.metric .sub{font-size:10px;font-family:var(--mono);color:var(--text3);margin-top:2px;}
+.metric.m-accent{background:var(--accent);border-color:var(--accent);color:#fff;}
+.metric.m-accent .label,.metric.m-accent .sub{color:rgba(255,255,255,0.65);}
+.metric.m-danger{background:var(--danger-light);border-color:var(--danger);}
+.metric.m-danger .value{color:var(--danger);}
+.notice{background:var(--blue-light);border:1px solid #90c4e0;border-radius:8px;padding:0.75rem 1rem;font-size:12px;font-family:var(--mono);color:var(--blue);margin-bottom:1.5rem;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.2rem 1.4rem;margin-bottom:1.5rem;}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;}
+.card-head h3{font-size:12px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;}
+.section-note{font-size:11px;font-family:var(--mono);color:var(--text3);margin-bottom:1rem;}
+.filter-select{font-family:var(--mono);font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);cursor:pointer;}
+/* PRIORITY */
+.priority-list{display:flex;flex-direction:column;gap:10px;}
+.priority-item{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:1rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;cursor:pointer;transition:background 0.1s;}
+.priority-item:hover{background:var(--surface2);}
+.priority-item.p-high{border-left:3px solid var(--danger);}
+.priority-item.p-mid{border-left:3px solid var(--warn);}
+.priority-item.p-ok{border-left:3px solid var(--accent);}
+.p-rank{font-size:1rem;font-weight:600;font-family:var(--mono);color:var(--text3);}
+.p-name{font-size:13px;font-weight:500;}
+.p-detail{font-size:11px;font-family:var(--mono);color:var(--text3);margin-top:2px;}
+.p-delta{font-size:1.1rem;font-weight:600;font-family:var(--mono);white-space:nowrap;}
+.p-delta.bad{color:var(--danger);}
+.p-delta.ok{color:var(--accent);}
+/* HEATMAP */
+.heatmap-wrap{overflow-x:auto;}
+.heatmap-table{border-collapse:collapse;width:100%;font-family:var(--mono);font-size:11px;}
+.heatmap-table th{padding:4px 8px;font-weight:500;color:var(--text3);text-align:center;white-space:nowrap;font-size:10px;letter-spacing:0.04em;}
+.heatmap-table th.site-col{text-align:left;min-width:120px;}
+.heatmap-table td{padding:0;border:2px solid var(--bg);}
+.hm-cell{display:flex;align-items:center;justify-content:center;height:36px;min-width:68px;font-size:11px;font-weight:500;font-family:var(--mono);cursor:pointer;transition:filter 0.15s;}
+.hm-cell:hover{filter:brightness(0.88);}
+.hm-site{padding:6px 10px;font-size:12px;font-weight:500;white-space:nowrap;}
+.hm-site small{display:block;font-size:10px;font-family:var(--mono);color:var(--text3);font-weight:400;}
+.hm-empty{background:var(--surface2);color:var(--text3);font-size:10px;cursor:default;}
+.heat-great{background:#2d5a3d;color:#fff;}
+.heat-good{background:#4a8c5c;color:#fff;}
+.heat-ok{background:#c8a84b;color:#fff;}
+.heat-warn{background:#c06030;color:#fff;}
+.heat-bad{background:#8b1a1a;color:#fff;}
+.heat-legend{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:0.75rem;}
+.heat-legend-item{display:flex;align-items:center;gap:5px;font-size:10px;font-family:var(--mono);color:var(--text3);}
+.heat-legend-swatch{width:14px;height:14px;border-radius:3px;}
+/* LEAGUE */
+.league-table{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:1.5rem;}
+.league-head{padding:0.85rem 1.2rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;}
+.league-head h3{font-size:12px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;}
+.league-row{display:grid;grid-template-columns:26px 130px 55px 65px 65px 82px 82px 100px 50px;align-items:center;padding:0.6rem 1.2rem;border-bottom:1px solid var(--border);gap:0.5rem;cursor:pointer;transition:background 0.1s;}
+.league-row:last-child{border-bottom:none;}
+.league-row:hover{background:var(--surface2);}
+.league-row.hdr{background:var(--surface2);cursor:default;padding:0.4rem 1.2rem;}
+.league-row.hdr span{font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;text-align:right;}
+.league-row.hdr span:nth-child(2){text-align:left;}
+.league-row.hdr span:nth-child(7){text-align:center;}
+.l-rank{font-size:11px;font-family:var(--mono);color:var(--text3);text-align:center;}
+.l-name{font-size:13px;font-weight:500;}
+.l-name small{display:block;font-size:10px;font-family:var(--mono);color:var(--text3);font-weight:400;}
+.l-num{font-size:12px;font-family:var(--mono);text-align:right;}
+.l-pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-family:var(--mono);font-weight:600;}
+.pill-good{background:var(--accent-light);color:var(--accent);}
+.pill-bad{background:var(--danger-light);color:var(--danger);}
+.pill-warn{background:var(--warn-light);color:var(--warn);}
+.spark-wrap{display:flex;align-items:center;justify-content:center;}
+/* CHART */
+.chart-wrap{position:relative;height:280px;}
+/* DRILLDOWN */
+.drilldown-panel{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:1.4rem;margin-bottom:1.5rem;display:none;}
+.drilldown-panel.open{display:block;}
+.drill-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:1rem;}
+.drill-header h3{font-size:1rem;font-weight:600;}
+.drill-header button{background:none;border:none;font-size:18px;cursor:pointer;color:var(--text3);}
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:1.2rem;}
+.cat-tile{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;}
+.cat-tile .cat-label{font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;}
+.cat-tile .cat-pct{font-size:1.3rem;font-weight:500;letter-spacing:-0.02em;}
+.cat-tile .cat-cost{font-size:11px;font-family:var(--mono);color:var(--text3);margin-top:2px;}
+.cat-bar{height:3px;border-radius:2px;margin-top:6px;background:var(--border);overflow:hidden;}
+.cat-bar-fill{height:100%;border-radius:2px;transition:width 0.5s ease;}
+.sku-table{width:100%;border-collapse:collapse;font-size:12px;}
+.sku-table th{font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;padding:6px 10px;text-align:right;border-bottom:1px solid var(--border);background:var(--surface);}
+.sku-table th:first-child{text-align:left;}
+.sku-table td{padding:7px 10px;border-bottom:1px solid var(--border);font-family:var(--mono);text-align:right;}
+.sku-table td:first-child{text-align:left;font-family:var(--sans);font-size:12px;max-width:220px;}
+.sku-table tr:last-child td{border-bottom:none;}
+.sku-table tr:hover td{background:var(--surface2);}
+.freq-badge{display:inline-block;padding:1px 6px;border-radius:10px;font-size:9px;font-family:var(--mono);margin-left:4px;}
+.freq-repeat{background:var(--danger-light);color:var(--danger);}
+.freq-common{background:var(--warn-light);color:var(--warn);}
+.sub-head{font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.5rem;}
+@media print{
+  header{display:none!important;}
+  .upload-zone,.no-print{display:none!important;}
+  #results{display:block!important;padding:0;}
+  .hm-cell,.heat-great,.heat-good,.heat-ok,.heat-warn,.heat-bad{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  @page{size:A4 landscape;margin:14mm 16mm;}
+}
+
+/* ════════════════════════════════════════════════════
+   EXECUTIVE PDF — A4 LANDSCAPE · BOARDROOM EDITION
+   Clean, minimal, strong grid. White background.
+   ════════════════════════════════════════════════════ */
+@media print {
+  /* Reset screen chrome */
+  .upload-zone, .no-print,
+  .btn-row, #errorMsg,
+  .filter-select, .notice,
+  .drilldown-panel,
+  #netChartCard,
+  .results-header,
+  #kpiStrip,
+  .priority-list,
+  #priorityCard,
+  .singleNotice,
+  #singleNotice { display: none !important; }
+
+  body { background: #fff; font-size: 10pt; color: #111; }
+  #results { display: block !important; padding: 0; }
+  @page { size: A4 landscape; margin: 14mm 16mm; }
+
+  /* ── PAGE BREAK CONTROL ── */
+  .print-page { page-break-after: always; page-break-inside: avoid; }
+  .print-page:last-child { page-break-after: auto; }
+
+  /* ── SCREEN SECTIONS — collapse on print ── */
+  .card, .league-table, .metrics { display: none !important; }
+
+  /* ── PRINT-ONLY PAGES — show on print ── */
+  .print-only { display: block !important; }
+
+  /* ── EXECUTIVE HEADER BAND ── */
+  .px-header {
+    display: flex !important;
+    align-items: stretch;
+    border-bottom: 3px solid #111;
+    margin-bottom: 8mm;
+    padding-bottom: 5mm;
+  }
+  .px-header-main { flex: 1; }
+  .px-header-main h1 { font-size: 22pt; font-weight: 700; letter-spacing: -0.03em; color: #111; line-height: 1.1; }
+  .px-header-main p  { font-size: 8pt; font-family: var(--mono); color: #666; margin-top: 3pt; letter-spacing: 0.08em; text-transform: uppercase; }
+  .px-header-meta { text-align: right; font-family: var(--mono); font-size: 8pt; color: #666; display: flex; flex-direction: column; justify-content: flex-end; gap: 2pt; }
+  .px-header-meta strong { font-size: 9pt; color: #111; }
+
+  /* ── RULE LINE ── */
+  .px-rule { border: none; border-top: 1px solid #ddd; margin: 3mm 0; }
+
+  /* ── KPI GRID ── */
+  .px-kpis {
+    display: grid !important;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4mm;
+    margin-bottom: 7mm;
+  }
+  .px-kpi { border-left: 2pt solid #111; padding-left: 2.5mm; }
+  .px-kpi.good { border-color: #2d5a3d; }
+  .px-kpi.bad  { border-color: #8b1a1a; }
+  .px-kpi .pk-label { font-size: 7pt; font-family: var(--mono); color: #888; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 1pt; }
+  .px-kpi .pk-value { font-size: 15pt; font-weight: 700; letter-spacing: -0.02em; color: #111; line-height: 1.1; }
+  .px-kpi.good .pk-value { color: #2d5a3d; }
+  .px-kpi.bad  .pk-value { color: #8b1a1a; }
+  .px-kpi .pk-sub { font-size: 7.5pt; font-family: var(--mono); color: #666; margin-top: 1pt; }
+
+  /* ── SECTION LABEL ── */
+  .px-section-label {
+    font-size: 7pt; font-family: var(--mono); color: #888;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    border-bottom: 1px solid #ddd; padding-bottom: 2pt; margin-bottom: 4mm;
+  }
+
+  /* ── HEATMAP PRINT ── */
+  .px-heatmap-wrap { overflow: visible; }
+  .px-heatmap {
+    border-collapse: collapse; width: 100%; table-layout: fixed;
+    font-family: var(--mono); font-size: 7.5pt;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .px-heatmap th { padding: 2pt 4pt; font-weight: 600; color: #444; font-size: 7pt; text-align: center; border-bottom: 2px solid #111; white-space: nowrap; }
+  .px-heatmap th.site-col { text-align: left; width: 32mm; }
+  .px-heatmap td { padding: 0; border: 1.5pt solid #fff; }
+  .px-hm-site { padding: 2pt 4pt; font-size: 7.5pt; font-weight: 600; white-space: nowrap; overflow: hidden; }
+  .px-hm-site small { display: block; font-size: 6pt; color: #888; font-weight: 400; }
+  .px-hm-cell {
+    display: flex; align-items: center; justify-content: center;
+    height: 7.5mm; font-size: 7.5pt; font-weight: 600;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .px-heat-great { background: #2d5a3d !important; color: #fff !important; }
+  .px-heat-good  { background: #4a8c5c !important; color: #fff !important; }
+  .px-heat-ok    { background: #c8a84b !important; color: #fff !important; }
+  .px-heat-warn  { background: #c06030 !important; color: #fff !important; }
+  .px-heat-bad   { background: #8b1a1a !important; color: #fff !important; }
+  .px-heat-none  { background: #f0f0f0 !important; color: #bbb !important; }
+
+  /* ── LEAGUE TABLE PRINT ── */
+  .px-league { width: 100%; border-collapse: collapse; font-size: 7.5pt; margin-bottom: 4mm; table-layout: fixed; }
+  .px-league th { font-size: 6.5pt; font-family: var(--mono); color: #888; text-transform: uppercase; letter-spacing: 0.04em; padding: 2.5pt 4pt; text-align: right; border-bottom: 2px solid #111; white-space: nowrap; overflow: hidden; }
+  .px-league th:nth-child(1) { width: 6mm; }
+  .px-league th:nth-child(2) { text-align: left; width: 38mm; }
+  .px-league th:nth-child(3) { width: 14mm; }
+  .px-league th:nth-child(4) { width: 14mm; }
+  .px-league th:nth-child(5) { width: 30mm; }
+  .px-league th:nth-child(6) { width: 16mm; }
+  .px-league th:nth-child(7) { width: 20mm; }
+  .px-league th:nth-child(8) { width: 18mm; }
+  .px-league td { padding: 3pt 4pt; border-bottom: 0.5pt solid #e8e8e8; font-family: var(--mono); text-align: right; vertical-align: middle; overflow: hidden; white-space: nowrap; }
+  .px-league td:nth-child(2) { text-align: left; font-family: var(--sans); font-size: 8pt; font-weight: 500; }
+  .px-league tr:nth-child(even) td { background: #fafafa; }
+  .px-league .good-val { color: #2d5a3d; font-weight: 700; }
+  .px-league .bad-val  { color: #8b1a1a; font-weight: 700; }
+  .px-league .warn-val { color: #8b4a0f; font-weight: 700; }
+  .px-status-good { display: inline-block; background: #e8f0eb; color: #2d5a3d; padding: 1pt 4pt; border-radius: 2pt; font-size: 6.5pt; font-weight: 700; font-family: var(--mono); }
+  .px-status-bad  { display: inline-block; background: #fdf0f0; color: #8b1a1a; padding: 1pt 4pt; border-radius: 2pt; font-size: 6.5pt; font-weight: 700; font-family: var(--mono); }
+  .px-status-warn { display: inline-block; background: #fdf0e6; color: #8b4a0f; padding: 1pt 4pt; border-radius: 2pt; font-size: 6.5pt; font-weight: 700; font-family: var(--mono); }
+
+  /* ── SITE DETAIL PAGE ── */
+  .px-site-header { display: flex !important; align-items: flex-end; justify-content: space-between; border-bottom: 2pt solid #111; padding-bottom: 3mm; margin-bottom: 3mm; }
+  .px-site-header h2 { font-size: 18pt; font-weight: 700; letter-spacing: -0.02em; }
+  .px-site-header .px-site-meta { font-family: var(--mono); font-size: 8pt; color: #666; text-align: right; }
+  .px-site-header .px-site-status { font-size: 10pt; font-weight: 700; margin-top: 2pt; }
+  .px-site-header .px-site-status.good { color: #2d5a3d; }
+  .px-site-header .px-site-status.bad  { color: #8b1a1a; }
+
+  .px-site-kpis { display: grid !important; grid-template-columns: repeat(5, 1fr); gap: 3mm; margin-bottom: 3mm; }
+
+  .px-cats { display: grid !important; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin-bottom: 3mm; }
+  .px-cat-tile { border: 0.5pt solid #e0e0e0; padding: 2mm 3mm; }
+  .px-cat-tile .pct-label { font-size: 6pt; font-family: var(--mono); color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1pt; }
+  .px-cat-tile .pct-val  { font-size: 13pt; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+  .px-cat-tile .pct-cost { font-size: 6.5pt; font-family: var(--mono); color: #666; margin-top: 0; }
+  .px-cat-tile .pct-bar  { height: 2pt; margin-top: 3pt; background: #eee; }
+  .px-cat-tile .pct-bar-fill { height: 100%; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* commentary */
+  .px-commentary { margin-bottom: 7mm; }
+  .px-commentary-headline { font-size: 11pt; font-weight: 700; letter-spacing: -0.01em; color: #111; line-height: 1.4; margin-bottom: 3mm; border-left: 3px solid #111; padding-left: 4mm; }
+  .px-commentary-body { font-size: 9pt; line-height: 1.7; color: #333; margin-bottom: 4mm; }
+  .px-mvi-grid { display: grid !important; grid-template-columns: 1fr 1fr; gap: 5mm; margin-bottom: 5mm; }
+  .px-mvi-tile { border: 0.5pt solid #e0e0e0; padding: 3mm 4mm; }
+  .px-mvi-tile .mvi-label { font-size: 7pt; font-family: var(--mono); color: #888; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 2pt; }
+  .px-mvi-tile .mvi-site  { font-size: 13pt; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+  .px-mvi-tile .mvi-delta { font-size: 9pt; font-family: var(--mono); font-weight: 600; margin-top: 2pt; }
+  .px-mvi-tile .mvi-detail { font-size: 7.5pt; font-family: var(--mono); color: #666; margin-top: 2pt; }
+  .mvi-good { color: #2d5a3d; }
+  .mvi-bad  { color: #8b1a1a; }
+
+  /* consolidated page footnotes */
+  .px-page-footnotes {
+    display: block;
+    margin-top: 6mm;
+    font-size: 6.5pt;
+    font-family: var(--mono);
+    color: #aaa;
+    border-top: 0.5pt solid #e8e8e8;
+    padding-top: 3pt;
+    line-height: 1.6;
+  }
+
+  /* footer */
+  .px-footer { position: fixed; bottom: 6mm; left: 16mm; right: 16mm; display: flex !important; justify-content: space-between; font-size: 7pt; font-family: var(--mono); color: #aaa; border-top: 0.5pt solid #e0e0e0; padding-top: 2pt; }
+  /* Give each page bottom padding so content doesn't slide under the fixed footer */
+  .print-page { padding-bottom: 12mm; }
+
+  /* pp footnote on print */
+  .px-pp-note { font-size: 7pt; font-family: var(--mono); color: #aaa; margin-top: 3mm; }
+}
+
+/* ── PRODUCT INTELLIGENCE ── */
+.prod-table { width:100%; border-collapse:collapse; font-size:12px; }
+.prod-table th { font-size:9px; font-family:var(--mono); color:var(--text3); text-transform:uppercase; letter-spacing:0.05em; padding:5px 8px; text-align:right; border-bottom:1px solid var(--border); }
+.prod-table th:first-child { text-align:left; }
+.prod-table td { padding:6px 8px; border-bottom:1px solid var(--border); font-family:var(--mono); font-size:11px; text-align:right; vertical-align:middle; }
+.prod-table td:first-child { text-align:left; font-family:var(--sans); font-size:12px; max-width:160px; }
+.prod-table tr:last-child td { border-bottom:none; }
+.prod-table tr:hover td { background:var(--surface2); }
+.badge-persistent { display:inline-block; background:var(--danger-light); color:var(--danger); padding:1px 6px; border-radius:10px; font-size:9px; font-family:var(--mono); font-weight:700; margin-left:3px; white-space:nowrap; }
+.badge-monitor    { display:inline-block; background:var(--warn-light);   color:var(--warn);   padding:1px 6px; border-radius:10px; font-size:9px; font-family:var(--mono); font-weight:700; margin-left:3px; white-space:nowrap; }
+.badge-star       { display:inline-block; background:var(--accent-light); color:var(--accent); padding:1px 6px; border-radius:10px; font-size:9px; font-family:var(--mono); font-weight:700; margin-left:3px; white-space:nowrap; }
+
+/* Print styles for product intelligence page */
+@media print {
+  .px-prod-page { page-break-before: always; }
+  .px-prod-header { display:flex !important; align-items:flex-end; justify-content:space-between; border-bottom:3px solid #111; padding-bottom:4mm; margin-bottom:6mm; }
+  .px-prod-header h1 { font-size:18pt; font-weight:700; letter-spacing:-0.02em; }
+  .px-prod-grid { display:grid !important; grid-template-columns:1fr 1fr; gap:4mm; margin-bottom:2mm; }
+  .px-prod-section-label { font-size:7pt; font-family:var(--mono); color:#888; text-transform:uppercase; letter-spacing:0.08em; padding-bottom:2pt; margin-bottom:3mm; }
+  .px-prod-section-label.worst { border-bottom:2pt solid #8b1a1a; color:#8b1a1a; }
+  .px-prod-section-label.best  { border-bottom:2pt solid #2d5a3d; color:#2d5a3d; }
+  .px-prod-table { width:100%; border-collapse:collapse; font-size:7pt; font-family:var(--mono); table-layout:fixed; }
+  .px-prod-table th { font-size:6pt; color:#888; text-transform:uppercase; letter-spacing:0.04em; padding:2.5pt 3pt; text-align:right; border-bottom:1pt solid #111; white-space:nowrap; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .px-prod-table th:first-child { text-align:left; width:45%; }
+  .px-prod-table th:nth-child(2) { width:16%; text-align:left; }
+  .px-prod-table th:nth-child(3) { width:8%; }
+  .px-prod-table th:nth-child(4) { width:12%; }
+  .px-prod-table th:nth-child(5) { width:10%; }
+  .px-prod-table th:nth-child(6) { width:9%; }
+  .px-prod-table td { padding:3pt 3pt; border-bottom:0.5pt solid #eee; text-align:right; vertical-align:middle; overflow:hidden; white-space:nowrap; }
+  .px-prod-table td:first-child { text-align:left; font-family:var(--sans); font-size:7pt; font-weight:500; }
+  .px-prod-table td:nth-child(2) { text-align:left; color:#888; font-size:6.5pt; }
+  .px-prod-table tr:nth-child(even) td { background:#fafafa; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .px-badge-p { display:inline-block; background:#fdf0f0; color:#8b1a1a; padding:0.5pt 3pt; border-radius:2pt; font-size:6pt; font-weight:700; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .px-badge-m { display:inline-block; background:#fdf0e6; color:#8b4a0f; padding:0.5pt 3pt; border-radius:2pt; font-size:6pt; font-weight:700; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .px-badge-s { display:inline-block; background:#e8f0eb; color:#2d5a3d; padding:0.5pt 3pt; border-radius:2pt; font-size:6pt; font-weight:700; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+}
+
+/* Hide print-only elements on screen */
+.print-only { display: none; }
+
+/* ── PAGE-1 SUMMARY TRIM (numbers + headline only; commentary now on its own page) ── */
+@media print {
+  .px-header { margin-bottom: 6mm; }
+  .px-kpis   { margin-bottom: 5mm; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Network Trend Analyser</h1>
+    <p>Z ENERGY C-STORE &middot; MULTI-PERIOD PERFORMANCE TRACKING</p>
+  </div>
+  <div class="hdr-right" id="headerMeta">Drop JSON snapshots below to begin</div>
+</header>
+
+<div class="upload-zone" id="uploadZone">
+  <h2>Load Trend History</h2>
+  <p>Drop one or more <strong>Network Trend - Month YYYY.json</strong> snapshot files &mdash; one per period.<br>
+  Add new periods to existing history, or drop a saved history file to restore everything at once.</p>
+  <div class="drop-target" id="dropTarget" onclick="document.getElementById('fileInput').click()">
+    <input type="file" id="fileInput" multiple accept=".json" />
+    <div class="drop-icon">&#128194;</div>
+    <div class="drop-label">Click to browse or drag &amp; drop JSON files here</div>
+    <div class="drop-hint">Accepts Network Trend JSON snapshots or a saved history file</div>
+  </div>
+  <div id="fileList"></div>
+  <div class="btn-row">
+    <button class="btn" id="runBtn" onclick="runAnalysis()" disabled>Analyse Trends</button>
+    <button class="btn-outline save-btn no-print" id="saveBtn" onclick="saveHistory()" style="display:none;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Save History JSON
+    </button>
+  </div>
+  <div id="errorMsg"></div>
+</div>
+
+<div id="results">
+  <div class="results-header">
+    <h2 id="resultsTitle">Network Trend</h2>
+    <span class="meta" id="resultsMeta"></span>
+    <button class="btn-outline save-btn no-print" onclick="saveHistory()" id="saveBtn2" style="display:none;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Save History JSON
+    </button>
+    <button class="btn-outline no-print" onclick="buildPrintPages();printWithTitle()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Print / PDF
+    </button>
+  </div>
+
+  <div class="notice" id="singleNotice" style="display:none;">
+    &#128197; Only one period loaded &mdash; heatmap trend and sparklines will grow as you add more monthly snapshots. Showing current-period analysis below.
+  </div>
+
+  <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.4rem;" id="kpiCurrentLabel">This Period</div>
+  <div class="metrics" id="kpiStrip"></div>
+  <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:0.07em;margin:1rem 0 0.4rem;" id="kpiCumulLabel" style="display:none;">Cumulative — All Periods</div>
+  <div class="metrics" id="kpiCumul" style="display:none;"></div>
+
+  <!-- COMMENTARY -->
+  <div class="card" id="commentaryCard" style="display:none;">
+    <div class="card-head">
+      <h3>&#128203; Network Analysis</h3>
+      <span style="font-size:10px;font-family:var(--mono);color:var(--text3);" id="commentaryPeriodLabel"></span>
+    </div>
+    <div id="commentaryHeadline" style="font-size:1rem;font-weight:600;letter-spacing:-0.01em;margin-bottom:0.6rem;line-height:1.4;color:var(--text);"></div>
+    <div id="commentaryBody" style="font-size:13px;line-height:1.7;color:var(--text2);"></div>
+    <div id="commentaryMVI" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:1rem;"></div>
+  </div>
+
+  <!-- VISIT PRIORITY -->
+  <div class="card">
+    <div class="card-head">
+      <h3>&#128308; Sites to Visit This Period</h3>
+      <select class="filter-select" id="prioritySort" onchange="renderPriority()">
+        <option value="vsTarget">Sort: vs Target (worst first)</option>
+        <option value="wasteCost">Sort: Total $ wasted</option>
+        <option value="costWastePct">Sort: Cost waste %</option>
+      </select>
+    </div>
+    <div class="priority-list" id="priorityList"></div>
+  </div>
+
+  <!-- HEATMAP -->
+  <div class="card">
+    <div class="card-head">
+      <h3>&#127777;&#65039; Performance Heatmap &mdash; Site &times; Period</h3>
+      <select class="filter-select" id="heatMetric" onchange="renderHeatmap()">
+        <option value="costWastePct">Cost waste %</option>
+        <option value="vsTarget">vs Target (pp)</option>
+        <option value="unitWastePct">Unit waste %</option>
+      </select>
+    </div>
+    <p class="section-note">Colour shows performance vs each site's target. Click any cell to drill into that site.</p>
+    <div class="heatmap-wrap"><table class="heatmap-table" id="heatmapTable"></table></div>
+    <div class="heat-legend">
+      <span style="font-size:10px;font-family:var(--mono);color:var(--text3);margin-right:4px;">Legend:</span>
+      <div class="heat-legend-item"><div class="heat-legend-swatch heat-great"></div>Well under target</div>
+      <div class="heat-legend-item"><div class="heat-legend-swatch heat-good"></div>On / near target</div>
+      <div class="heat-legend-item"><div class="heat-legend-swatch heat-ok"></div>Slightly over</div>
+      <div class="heat-legend-item"><div class="heat-legend-swatch heat-warn"></div>Over target</div>
+      <div class="heat-legend-item"><div class="heat-legend-swatch heat-bad"></div>Well over target</div>
+      <span style="font-size:10px;font-family:var(--mono);color:var(--text3);margin-left:auto;">pp = percentage points above/below site target</span>
+    </div>
+  </div>
+
+  <!-- SPARKLINE LEAGUE TABLE -->
+  <div class="league-table">
+    <div class="league-head">
+      <h3>&#128202; Site League &mdash; with Trend Sparklines</h3>
+      <select class="filter-select" id="leagueSort" onchange="renderLeague()">
+        <option value="vsTarget">Sort: vs Target (worst first)</option>
+        <option value="costWastePct">Sort: Cost waste %</option>
+        <option value="wasteCost">Sort: Total $ wasted</option>
+      </select>
+    </div>
+    <div class="league-row hdr">
+      <span>#</span><span>Site</span><span>Target</span><span>Latest %</span>
+      <span>vs Target (pp)*</span><span>Status</span><span>Trend</span><span>Dir</span>
+    </div>
+    <div id="leagueBody"></div>
+    <div style="padding:0.5rem 1.2rem;font-size:10px;font-family:var(--mono);color:var(--text3);border-top:1px solid var(--border);">* pp = percentage points above/below each site's individual wastage target</div>
+</div>
+
+  <!-- NETWORK CHART -->
+  <div class="card" id="netChartCard">
+    <div class="card-head">
+      <h3>&#128200; Network Average Trend</h3>
+      <select class="filter-select" id="chartFilter" onchange="renderNetworkChart()">
+        <option value="__network__">Network average</option>
+      </select>
+    </div>
+    <p class="section-note">Cost waste % over time. Requires 2+ periods. Select a site to highlight it.</p>
+    <div class="chart-wrap"><canvas id="networkChart"></canvas></div>
+  </div>
+
+  <!-- PRODUCT INTELLIGENCE -->
+  <div class="card" id="productCard" style="display:none;">
+    <div class="card-head">
+      <h3>&#127775; Product Intelligence</h3>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <select class="filter-select" id="productSiteFilter" onchange="buildProductIntelligence()">
+          <option value="__network__">Network-wide</option>
+        </select>
+        <span id="productSiteLabel" style="font-size:10px;font-family:var(--mono);color:var(--text3);">Latest period &middot; aggregated across all sites</span>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+      <div>
+        <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.6rem;padding-bottom:0.4rem;border-bottom:2px solid var(--danger);">&#128465; Bottom 10 &mdash; Deletion Candidates</div>
+        <div id="worstProductsTable"></div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.6rem;padding-bottom:0.4rem;border-bottom:2px solid var(--accent);">&#11088; Top 10 &mdash; Network Stars</div>
+        <div id="bestProductsTable"></div>
+      </div>
+    </div>
+    <div style="font-size:10px;font-family:var(--mono);color:var(--text3);margin-top:0.75rem;">&#9432; Based on top 20 SKUs per site by waste cost. Best performers ranked by highest units sold with lowest waste cost ratio.</div>
+  </div>
+
+  <!-- DRILLDOWN -->
+  <div class="drilldown-panel" id="drillPanel">
+    <div class="drill-header">
+      <h3 id="drillTitle">Site Drilldown</h3>
+      <button onclick="closeDrill()">&#10005;</button>
+    </div>
+    <div id="drillKpis" style="margin-bottom:1.2rem;"></div>
+    <div class="sub-head">Category breakdown &mdash; latest period</div>
+    <div class="cat-grid" id="drillCats"></div>
+    <div class="sub-head" style="margin-top:0.5rem;">Top SKUs by waste cost &mdash; latest period</div>
+    <div style="overflow-x:auto;">
+      <table class="sku-table">
+        <thead><tr>
+          <th>Product</th><th>Category</th><th>Sold</th><th>Wasted</th>
+          <th>Unit %</th><th>Waste $</th><th>Cost %</th>
+        </tr></thead>
+        <tbody id="drillSkus"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+<script>
+const CAT_LABELS={gourmet:'Gourmet',classic:'Classic Pies & Rolls',zdp:'ZDP Premium',zespress:'Z Espress',hotfood:'Hot Food & Chicken',bakery:'Bakery & Sweet',salad:'Salads & Bowls',snacks:'Snacks & Other'};
+const CAT_ORDER=['gourmet','classic','zdp','zespress','hotfood','bakery','salad','snacks'];
+
+// Site name aliases — map any alternate label to a single canonical name so the
+// same site matches across periods. Add more pairs here as needed.
+const SITE_ALIASES={'Z VIC':'Z VIC Corner'};
+function canonSite(name){return SITE_ALIASES[name]||name;}
+
+let uploadedFiles=[];
+let allSnapshots=[];
+let netChart=null;
+
+// ── FILE HANDLING ──
+const dt=document.getElementById('dropTarget');
+const fi=document.getElementById('fileInput');
+dt.addEventListener('dragover',e=>{e.preventDefault();dt.classList.add('drag-over');});
+dt.addEventListener('dragleave',()=>dt.classList.remove('drag-over'));
+dt.addEventListener('drop',e=>{e.preventDefault();dt.classList.remove('drag-over');addFiles(Array.from(e.dataTransfer.files));});
+fi.addEventListener('change',()=>{addFiles(Array.from(fi.files));fi.value='';});
+
+function addFiles(files){
+  files.forEach(f=>{
+    if (!f.name.match(/\.json$/i)) return;
+    if(uploadedFiles.find(x=>x.name===f.name))return;
+    uploadedFiles.push(f);
+  });
+  renderFileList();
+}
+function removeFile(name){uploadedFiles=uploadedFiles.filter(f=>f.name!==name);renderFileList();}
+function renderFileList(){
+  const el=document.getElementById('fileList');
+  el.innerHTML='';
+  uploadedFiles.forEach(f=>{
+    const chip=document.createElement('div');
+    chip.className='file-chip';
+    const safeName = f.name.replace(/'/g, "\\'");
+    chip.innerHTML = '&#128196; ' + f.name + ' <button onclick="removeFile(\'' + safeName + '\')" title="Remove">&times;</button>';
+    el.appendChild(chip);
+  });
+  document.getElementById('runBtn').disabled=uploadedFiles.length===0;
+}
+
+// ── PARSE & RUN ──
+async function runAnalysis(){
+  document.getElementById('errorMsg').innerHTML='';
+  document.getElementById('runBtn').disabled=true;
+  document.getElementById('runBtn').textContent='Loading\u2026';
+  try{
+    const parsed=await Promise.all(uploadedFiles.map(readSnapshot));
+    // flatten: support both single snapshots and history bundles
+    const flat=[];
+    for(const p of parsed){
+      if(p._type==='network_trend_history'&&Array.isArray(p.snapshots)){
+        p.snapshots.forEach(s=>flat.push(s));
+      } else {
+        flat.push(p);
+      }
+    }
+    const map={};
+    flat.forEach(s=>{if(s.periodKey&&s.sites)map[s.periodKey]=s;});
+    allSnapshots=Object.values(map).sort((a,b)=>a.periodKey.localeCompare(b.periodKey));
+    // Normalise site-name aliases so the same site matches across periods
+    allSnapshots.forEach(function(snap){(snap.sites||[]).forEach(function(s){s.site=canonSite(s.site);});});
+    // Recompute network waste % on a COST-OF-GOODS basis (to match each site's Cost Waste %).
+    // Newer snapshots (v3+) carry per-site salesCost, so we use it for an exact figure; older
+    // snapshots stored netCostWastePct as waste ÷ sales(ex GST) and lack salesCost, so we derive
+    // each site's cost of goods from its own wasteCost ÷ costWastePct. Either way the headline
+    // becomes comparable to the site figures and every period sits on the same basis.
+    allSnapshots.forEach(function(snap){
+      var ns = snap.networkSummary; if(!ns) return;
+      var totWaste = 0, totCogs = 0;
+      (snap.sites||[]).forEach(function(s){
+        var w = s.wasteCost || 0;
+        var cogs = (s.salesCost != null && s.salesCost > 0)
+          ? s.salesCost
+          : (s.costWastePct && s.costWastePct > 0 ? w / (s.costWastePct / 100) : 0);
+        if (cogs > 0) { totWaste += w; totCogs += cogs; }
+      });
+      if (totCogs > 0) ns.netCostWastePct = Math.round(totWaste / totCogs * 1000) / 10;
+    });
+    if(!allSnapshots.length)throw new Error('No valid snapshots found in uploaded files.');
+    renderAll();
+    document.getElementById('results').style.display='block';
+    document.getElementById('results').scrollIntoView({behavior:'smooth'});
+    document.getElementById('saveBtn').style.display='';
+    document.getElementById('saveBtn2').style.display='';
+  }catch(err){
+    document.getElementById('errorMsg').innerHTML='<div class="error-msg">Error: '+err.message+'</div>';
+    console.error(err);
+  }
+  document.getElementById('runBtn').disabled=false;
+  document.getElementById('runBtn').textContent='Analyse Trends';
+}
+
+function readSnapshot(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=e=>{
+      try{const d=JSON.parse(e.target.result);res(d);}
+      catch(err){rej(new Error(file.name+': '+err.message));}
+    };
+    r.onerror=rej;
+    r.readAsText(file);
+  });
+}
+
+// ── SAVE HISTORY ──
+function saveHistory(){
+  if(!allSnapshots.length)return;
+  const latest=allSnapshots[allSnapshots.length-1];
+  const bundle={_type:'network_trend_history',_version:1,exportedAt:new Date().toISOString(),periods:allSnapshots.length,snapshots:allSnapshots};
+  const blob=new Blob([JSON.stringify(bundle,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='Network Trend History - to '+latest.periodLabel+'.json';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ── RENDER ALL ──
+function renderAll(){
+  const latest=allSnapshots[allSnapshots.length-1];
+  const n=allSnapshots.length;
+  const isSingle=n===1;
+  document.getElementById('resultsTitle').textContent=isSingle?'Network Trend \u2014 '+latest.periodLabel:'Network Trend \u2014 '+allSnapshots[0].periodLabel+' \u2192 '+latest.periodLabel;
+  document.getElementById('resultsMeta').textContent=n+' period'+(n>1?'s':'')+' \u00b7 '+latest.sites.length+' sites';
+  document.getElementById('headerMeta').textContent=n+' period'+(n>1?'s':'')+' loaded \u00b7 latest: '+latest.periodLabel;
+  document.getElementById('singleNotice').style.display=isSingle?'':'none';
+  document.getElementById('netChartCard').style.display=isSingle?'none':'';
+  renderKpis(latest);
+  renderPriority();
+  renderHeatmap();
+  renderLeague();
+  if(!isSingle){populateSiteFilter();renderNetworkChart();}
+  renderCumulKpis();
+  buildCommentary();
+  buildProductIntelligence();
+  buildPrintPages();
+}
+
+// ── KPI STRIP ──
+function renderKpis(latest){
+  const ns=latest.networkSummary;
+  const prev=allSnapshots.length>1?allSnapshots[allSnapshots.length-2]:null;
+  const prevNs=prev?prev.networkSummary:null;
+  const delta=prevNs?(ns.netCostWastePct-prevNs.netCostWastePct).toFixed(1):null;
+  const deltaGood=delta!==null&&parseFloat(delta)<0;
+  const deltaStr=delta===null?'\u2014':parseFloat(delta)>0?'\u25b2'+delta+'pp':'\u25bc'+Math.abs(delta)+'pp';
+  // Net $ vs target: sum of (salesEx * vsTarget / 100) across all sites — overs positive, unders negative
+  const netDollarVsTarget = latest.sites.reduce(function(sum, s) {
+    return sum + (s.salesEx ? s.salesEx * (s.vsTarget || 0) / 100 : 0);
+  }, 0);
+  const netDollarRounded = Math.round(netDollarVsTarget);
+  const netDollarStr = (netDollarRounded >= 0 ? '+$' : '-$') + Math.abs(netDollarRounded).toLocaleString();
+  const netDollarGood = netDollarRounded < 0;
+  document.getElementById('kpiStrip').innerHTML=`
+    <div class="metric ${ns.netCostWastePct>25?'m-danger':''}">
+      <div class="label">Network Avg Waste %</div>
+      <div class="value">${ns.netCostWastePct}%</div>
+      <div class="sub">${latest.periodLabel}</div>
+    </div>
+    <div class="metric">
+      <div class="label">vs Prior Period</div>
+      <div class="value" style="color:${delta===null?'inherit':deltaGood?'var(--accent)':'var(--danger)'}">${deltaStr}</div>
+      <div class="sub">${prevNs?prev.periodLabel:'No prior period'}</div>
+    </div>
+    <div class="metric">
+      <div class="label">Total Waste Cost</div>
+      <div class="value">$${Math.round(ns.totalWasteCost).toLocaleString()}</div>
+      <div class="sub">${ns.siteCount} sites</div>
+    </div>
+    <div class="metric ${netDollarGood?'':'m-danger'}">
+      <div class="label">Net $ vs Target</div>
+      <div class="value" style="color:${netDollarGood?'var(--accent)':'var(--danger)'}">${netDollarStr}</div>
+      <div class="sub">overs minus unders</div>
+    </div>
+    <div class="metric ${ns.onTargetCount>=Math.ceil(ns.siteCount/2)?'m-accent':''}">
+      <div class="label">On Target</div>
+      <div class="value">${ns.onTargetCount} <span style="font-size:0.75em;opacity:0.6">/ ${ns.siteCount}</span></div>
+      <div class="sub">sites meeting target</div>
+    </div>
+    <div class="metric ${ns.aboveTargetCount>0?'m-danger':''}">
+      <div class="label">Above Target</div>
+      <div class="value">${ns.aboveTargetCount}</div>
+      <div class="sub">sites need attention</div>
+    </div>`;
+}
+
+// ── CUMULATIVE KPI STRIP ─────────────────────────────────────────────────────
+function renderCumulKpis() {
+  const n = allSnapshots.length;
+  const cumulEl   = document.getElementById('kpiCumul');
+  const cumulLabel = document.getElementById('kpiCumulLabel');
+  const curLabel   = document.getElementById('kpiCurrentLabel');
+
+  // Always show current label
+  curLabel.textContent = 'This Period — ' + allSnapshots[allSnapshots.length-1].periodLabel;
+
+  // Only show cumulative strip if 2+ periods
+  if (n < 2) { cumulEl.style.display = 'none'; cumulLabel.style.display = 'none'; return; }
+  cumulEl.style.display = '';
+  cumulLabel.style.display = '';
+  cumulLabel.textContent = 'Cumulative — ' + allSnapshots[0].periodLabel + ' → ' + allSnapshots[n-1].periodLabel;
+
+  // Cumulative calculations
+  const totalWasteCost = allSnapshots.reduce(function(s, p) { return s + p.networkSummary.totalWasteCost; }, 0);
+  const avgWastePct    = Math.round(allSnapshots.reduce(function(s, p) { return s + p.networkSummary.netCostWastePct; }, 0) / n * 10) / 10;
+
+  // Net $ vs target across all periods
+  const totalNetDollar = allSnapshots.reduce(function(sum, snap) {
+    return sum + snap.sites.reduce(function(s, site) {
+      return s + (site.salesEx ? site.salesEx * (site.vsTarget || 0) / 100 : 0);
+    }, 0);
+  }, 0);
+  const netDollarRounded = Math.round(totalNetDollar);
+  const netDollarStr = (netDollarRounded >= 0 ? '+$' : '-$') + Math.abs(netDollarRounded).toLocaleString();
+
+  // Overall trend direction: compare first period avg to last period avg
+  const firstPct = allSnapshots[0].networkSummary.netCostWastePct;
+  const lastPct  = allSnapshots[n-1].networkSummary.netCostWastePct;
+  const trendDiff = Math.round((lastPct - firstPct) * 10) / 10;
+  const trendGood = trendDiff < 0;
+  const trendStr  = trendDiff === 0 ? '→ Flat'
+    : trendGood ? '↓ ' + Math.abs(trendDiff) + 'pp improvement'
+    : '↑ ' + trendDiff + 'pp worsening';
+
+  // Best and worst periods
+  const sorted = [...allSnapshots].sort(function(a,b) {
+    return a.networkSummary.netCostWastePct - b.networkSummary.netCostWastePct;
+  });
+  const bestPeriod  = sorted[0];
+  const worstPeriod = sorted[sorted.length-1];
+
+  cumulEl.innerHTML = `
+    <div class="metric">
+      <div class="label">Avg Network Waste %</div>
+      <div class="value">${avgWastePct}%</div>
+      <div class="sub">across ${n} periods</div>
+    </div>
+    <div class="metric">
+      <div class="label">Total Waste Cost</div>
+      <div class="value">$${Math.round(totalWasteCost).toLocaleString()}</div>
+      <div class="sub">${allSnapshots[0].periodLabel} → ${allSnapshots[n-1].periodLabel}</div>
+    </div>
+    <div class="metric ${netDollarRounded < 0 ? '' : 'm-danger'}">
+      <div class="label">Net $ vs Target</div>
+      <div class="value" style="color:${netDollarRounded<0?'var(--accent)':'var(--danger)'}">${netDollarStr}</div>
+      <div class="sub">cumulative all periods</div>
+    </div>
+    <div class="metric ${trendGood ? 'm-accent' : 'm-danger'}">
+      <div class="label">Overall Trend</div>
+      <div class="value" style="font-size:1rem;">${trendStr}</div>
+      <div class="sub">${allSnapshots[0].periodLabel} → ${allSnapshots[n-1].periodLabel}</div>
+    </div>
+    <div class="metric">
+      <div class="label">Best Period</div>
+      <div class="value" style="font-size:1rem;color:var(--accent)">${bestPeriod.networkSummary.netCostWastePct}%</div>
+      <div class="sub">${bestPeriod.periodLabel}</div>
+    </div>
+    <div class="metric">
+      <div class="label">Worst Period</div>
+      <div class="value" style="font-size:1rem;color:var(--danger)">${worstPeriod.networkSummary.netCostWastePct}%</div>
+      <div class="sub">${worstPeriod.periodLabel}</div>
+    </div>
+    <div class="metric">
+      <div class="label">Periods on Record</div>
+      <div class="value">${n}</div>
+      <div class="sub">${allSnapshots[0].periodLabel} → ${allSnapshots[n-1].periodLabel}</div>
+    </div>`;
+}
+
+// ── PRIORITY ──
+function renderPriority(){
+  const latest=allSnapshots[allSnapshots.length-1];
+  const sort=document.getElementById('prioritySort').value;
+  const sites=[...latest.sites].sort((a,b)=>b[sort]-a[sort]);
+  const el=document.getElementById('priorityList');
+  el.innerHTML='';
+  sites.forEach((s,i)=>{
+    const cls=s.onTarget?'p-ok':s.vsTarget>10?'p-high':'p-mid';
+    const icon=s.onTarget?'\u2705':s.vsTarget>10?'\ud83d\udd34':'\ud83d\udfe1';
+    const deltaStr=s.onTarget?'\u2713 '+Math.abs(s.vsTarget)+'pp under':'+'+s.vsTarget+'pp over';
+    const item=document.createElement('div');
+    item.className='priority-item '+cls;
+    item.innerHTML='<div class="p-rank">'+(i+1)+'</div>'
+      +'<div><div class="p-name">'+icon+' '+s.site+'</div>'
+      +'<div class="p-detail">Target: '+s.target+'% &middot; Actual: '+s.costWastePct+'% &middot; Waste: $'+Math.round(s.wasteCost).toLocaleString()+'</div></div>'
+      +'<div class="p-delta '+(s.onTarget?'ok':'bad')+'">'+deltaStr+'</div>';
+    item.onclick=()=>openDrill(s.site);
+    el.appendChild(item);
+  });
+}
+
+// ── HEATMAP ──
+function renderHeatmap(){
+  const metric=document.getElementById('heatMetric').value;
+  const latest=allSnapshots[allSnapshots.length-1];
+  const siteOrder=[...latest.sites].sort((a,b)=>b.costWastePct-a.costWastePct).map(s=>s.site);
+  const table=document.getElementById('heatmapTable');
+  table.innerHTML='';
+  const thead=document.createElement('thead');
+  const hrow=document.createElement('tr');
+  let ths='<th class="site-col">Site</th>';
+  allSnapshots.forEach(p=>{ths+='<th>'+p.periodLabel.replace(' ','<br>')+'</th>';});
+  hrow.innerHTML=ths;
+  thead.appendChild(hrow);
+  table.appendChild(thead);
+  const tbody=document.createElement('tbody');
+  siteOrder.forEach(name=>{
+    const tr=document.createElement('tr');
+    const tgt=getSiteTarget(name,latest);
+    let cells='<td class="hm-site">'+name.replace('Z ','')+' <small>'+tgt+'% target</small></td>';
+    allSnapshots.forEach(p=>{
+      const sd=p.sites.find(s=>s.site===name);
+      if(!sd){cells+='<td><div class="hm-cell hm-empty">\u2014</div></td>';return;}
+      const val=sd[metric];
+      const cls=heatClass(sd.vsTarget);
+      const disp=metric==='vsTarget'?(val>0?'+':'')+val+'pp':val+'%';
+      cells+='<td><div class="hm-cell '+cls+'" title="'+name+' \u00b7 '+p.periodLabel+': '+disp+'" data-drill="'+name.replace(/"/g,"&quot;")+'">'+disp+'</div></td>';
+    });
+    tr.innerHTML=cells;
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  // Event delegation for cell clicks
+  table.onclick = function(e) {
+    const cell = e.target.closest('[data-drill]');
+    if (cell) openDrill(cell.getAttribute('data-drill'));
+  };
+}
+
+function heatClass(v){
+  if(v===null||v===undefined)return'hm-empty';
+  if(v<=-3)return'heat-great';
+  if(v<=2)return'heat-good';
+  if(v<=6)return'heat-ok';
+  if(v<=12)return'heat-warn';
+  return'heat-bad';
+}
+function getSiteTarget(name,snap){const s=snap.sites.find(x=>x.site===name);return s?s.target:'\u2014';}
+
+// ── LEAGUE ──
+function renderLeague(){
+  const sort=document.getElementById('leagueSort').value;
+  const latest=allSnapshots[allSnapshots.length-1];
+  const sites=[...latest.sites].sort((a,b)=>b[sort]-a[sort]);
+  const body=document.getElementById('leagueBody');
+  body.innerHTML='';
+  sites.forEach((s,i)=>{
+    const history=allSnapshots.map(p=>{const sd=p.sites.find(x=>x.site===s.site);return sd?sd.costWastePct:null;});
+    const row=document.createElement('div');
+    row.className='league-row';
+    row.onclick=()=>openDrill(s.site);
+    const pill=s.onTarget?'<span class="l-pill pill-good">\u2713 On target</span>':s.vsTarget>10?'<span class="l-pill pill-bad">\u2717 +'+s.vsTarget+'pp</span>':'<span class="l-pill pill-warn">\u2717 +'+s.vsTarget+'pp</span>';
+    const arrow=trendArrow(history);
+    row.innerHTML='<span class="l-rank">'+(i+1)+'</span>'
+      +'<span class="l-name">'+s.site+'<small>Target: '+s.target+'%</small></span>'
+      +'<span class="l-num">'+s.target+'%</span>'
+      +'<span class="l-num" style="font-weight:600">'+s.costWastePct+'%</span>'
+      +'<span class="l-num" style="color:'+(s.onTarget?'var(--accent)':'var(--danger)')+'">'+(s.onTarget?'-':'+')+(s.vsTarget>0?s.vsTarget:Math.abs(s.vsTarget))+'pp</span>'
+      +'<span>'+pill+'</span>'
+      +'<span class="l-num" style="font-weight:600;color:'+(s.onTarget?'var(--accent)':'var(--danger)')+'">'+(s.salesEx?(s.onTarget?'-$':'+$')+Math.round(Math.abs(s.salesEx*(s.vsTarget||0)/100)).toLocaleString():'—')+'</span>'
+      +'<span class="spark-wrap"><canvas width="100" height="34" id="sp'+i+'"></canvas></span>'
+      +'<span style="text-align:center;font-size:16px">'+arrow+'</span>';
+    body.appendChild(row);
+    requestAnimationFrame(()=>drawSparkline('sp'+i,history,s.target));
+  });
+}
+
+function trendArrow(history){
+  const vals=history.filter(v=>v!==null);
+  if(vals.length<2)return'<span style="color:var(--text3);font-size:12px">\u2014</span>';
+  const diff=vals[vals.length-1]-vals[0];
+  if(diff<-2)return'<span style="color:var(--accent)">\u2193</span>';
+  if(diff>2)return'<span style="color:var(--danger)">\u2191</span>';
+  return'<span style="color:var(--text3)">\u2192</span>';
+}
+
+function drawSparkline(id,history,target){
+  const canvas=document.getElementById(id);
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const vals=history.map(v=>v===null?NaN:v);
+  const valid=vals.filter(v=>!isNaN(v));
+  if(!valid.length)return;
+  const minV=Math.min(...valid,target)-2;
+  const maxV=Math.max(...valid,target)+2;
+  const W=canvas.width,H=canvas.height,pad=4;
+  ctx.clearRect(0,0,W,H);
+  const toX=i=>pad+(i/(vals.length-1||1))*(W-pad*2);
+  const toY=v=>H-pad-((v-minV)/(maxV-minV))*(H-pad*2);
+  if(target){
+    const ty=toY(target);
+    ctx.save();ctx.strokeStyle='rgba(45,90,61,0.35)';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+    ctx.beginPath();ctx.moveTo(pad,ty);ctx.lineTo(W-pad,ty);ctx.stroke();ctx.restore();
+  }
+  const latestVal=valid[valid.length-1];
+  const col=latestVal<=target?'rgba(45,90,61,0.9)':latestVal<=target+6?'rgba(192,96,48,0.9)':'rgba(139,26,26,0.9)';
+  ctx.beginPath();ctx.lineWidth=2;ctx.lineJoin='round';ctx.lineCap='round';
+  let started=false;
+  vals.forEach((v,i)=>{if(isNaN(v))return;const x=toX(i),y=toY(v);if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);});
+  ctx.strokeStyle=col;ctx.stroke();
+  vals.forEach((v,i)=>{if(isNaN(v))return;ctx.beginPath();ctx.arc(toX(i),toY(v),2.5,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();});
+}
+
+// ── NETWORK CHART ──
+function populateSiteFilter(){
+  const sel=document.getElementById('chartFilter');
+  const latest=allSnapshots[allSnapshots.length-1];
+  sel.innerHTML='<option value="__network__">Network average</option>';
+  latest.sites.forEach(s=>{sel.innerHTML+='<option value="'+s.site+'">'+s.site+'</option>';});
+}
+
+function renderNetworkChart(){
+  const filter=document.getElementById('chartFilter').value;
+  const labels=allSnapshots.map(p=>p.periodLabel);
+  const datasets=[];
+  if(filter==='__network__'){
+    const vals=allSnapshots.map(p=>p.networkSummary.netCostWastePct);
+    // Colour each point: green if improving (lower than previous), red if worsening
+    const pointColors=vals.map(function(v,i){
+      if(i===0) return '#6b6860';
+      return v<=vals[i-1]?'#2d5a3d':'#8b1a1a';
+    });
+    // Segment colours: green if going down, red if going up
+    const segmentPlugin={
+      beforeDatasetsDraw:function(chart){
+        const ds=chart.data.datasets[0];
+        if(!ds||!ds._segmentColors)return;
+        const meta=chart.getDatasetMeta(0);
+        const ctx=chart.ctx;
+        meta.data.forEach(function(pt,i){
+          if(i===0)return;
+          const prev=meta.data[i-1];
+          const col=ds._segmentColors[i]||'#6b6860';
+          ctx.save();
+          ctx.strokeStyle=col;
+          ctx.lineWidth=2.5;
+          ctx.beginPath();
+          ctx.moveTo(prev.x,prev.y);
+          ctx.lineTo(pt.x,pt.y);
+          ctx.stroke();
+          ctx.restore();
+        });
+      }
+    };
+    const segColors=vals.map(function(v,i){
+      if(i===0)return '#6b6860';
+      return v<=vals[i-1]?'#2d5a3d':'#8b1a1a';
+    });
+    const bgColors=vals.map(function(v,i){
+      if(i===0)return 'rgba(107,104,96,0.07)';
+      return v<=vals[i-1]?'rgba(45,90,61,0.07)':'rgba(139,26,26,0.07)';
+    });
+    // Use last point colour for the overall line (Chart.js limitation for single colour)
+    const lastColor=segColors[segColors.length-1]||'#6b6860';
+    datasets.push({
+      label:'Network Avg',
+      data:vals,
+      borderColor:lastColor,
+      backgroundColor:vals[vals.length-1]<=vals[vals.length-2]?'rgba(45,90,61,0.07)':'rgba(139,26,26,0.07)',
+      borderWidth:2.5,tension:0,fill:true,pointRadius:5,
+      pointBackgroundColor:pointColors,
+      pointBorderColor:pointColors,
+      _segmentColors:segColors
+    });
+  } else {
+    const siteData=allSnapshots.map(p=>{const s=p.sites.find(x=>x.site===filter);return s?s.costWastePct:null;});
+    const tgt=allSnapshots[allSnapshots.length-1].sites.find(x=>x.site===filter)?.target;
+    // For a single site: green if on/under target, red if over
+    const siteColor=tgt&&siteData[siteData.length-1]<=tgt?'#2d5a3d':'#8b1a1a';
+    const siteBg=tgt&&siteData[siteData.length-1]<=tgt?'rgba(45,90,61,0.07)':'rgba(139,26,26,0.07)';
+    datasets.push({label:filter,data:siteData,borderColor:siteColor,backgroundColor:siteBg,borderWidth:2.5,tension:0,fill:true,pointRadius:5,pointBackgroundColor:siteData.map(function(v){return tgt?(v<=tgt?'#2d5a3d':'#8b1a1a'):'#6b6860';}),spanGaps:true});
+    if(tgt)datasets.push({label:'Target ('+tgt+'%)',data:allSnapshots.map(()=>tgt),borderColor:'rgba(45,90,61,0.5)',borderWidth:1.5,borderDash:[5,5],pointRadius:0,fill:false});
+  }
+  if(netChart)netChart.destroy();
+  netChart=new Chart(document.getElementById('networkChart').getContext('2d'),{
+    type:'line',data:{labels,datasets},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:datasets.length>1,labels:{font:{family:"'DM Mono',monospace",size:11},color:'#6b6860'}},tooltip:{callbacks:{label:c=>' '+c.dataset.label+': '+(c.parsed.y!==null?c.parsed.y+'%':'\u2014')},bodyFont:{family:"'DM Mono',monospace",size:12}}},
+      scales:{x:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{family:"'DM Mono',monospace",size:11},color:'#9e9b94'}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{callback:v=>v+'%',font:{family:"'DM Mono',monospace",size:11},color:'#9e9b94'},beginAtZero:false}}}
+  });
+}
+
+// ── DRILLDOWN ──
+function openDrill(siteName){
+  const latest=allSnapshots[allSnapshots.length-1];
+  const s=latest.sites.find(x=>x.site===siteName);
+  if(!s)return;
+  document.getElementById('drillTitle').textContent=siteName+' \u2014 '+latest.periodLabel;
+  // KPI mini row
+  document.getElementById('drillKpis').innerHTML=`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:0.5rem;">
+    ${miniKpi('Cost Waste %',s.costWastePct+'%','Target: '+s.target+'%',s.onTarget?'m-accent':'m-danger')}
+    ${miniKpi('vs Target',(s.vsTarget>0?'+':'')+s.vsTarget+'pp',s.onTarget?'Under budget':'Over target')}
+    ${miniKpi('Waste Cost','$'+Math.round(s.wasteCost).toLocaleString(),latest.periodLabel)}
+    ${miniKpi('Units Sold',s.unitsSold.toLocaleString(),s.unitsWasted+' wasted')}
+  </div>`;
+  // Categories
+  const catEl=document.getElementById('drillCats');catEl.innerHTML='';
+  const maxP=Math.max(...Object.values(s.categories).map(c=>c.costWastePct||0));
+  CAT_ORDER.forEach(cat=>{
+    const c=s.categories[cat];if(!c)return;
+    const pct=c.costWastePct||0;
+    const fill=pct>30?'#8b1a1a':pct>20?'#c06030':pct>12?'#c8a84b':'#2d5a3d';
+    const tile=document.createElement('div');tile.className='cat-tile';
+    tile.innerHTML='<div class="cat-label">'+(c.label||CAT_LABELS[cat]||cat)+'</div>'
+      +'<div class="cat-pct" style="color:'+fill+'">'+pct+'%</div>'
+      +'<div class="cat-cost">$'+Math.round(c.wasteCost).toLocaleString()+' wasted</div>'
+      +'<div class="cat-bar"><div class="cat-bar-fill" style="width:'+(maxP>0?pct/maxP*100:0)+'%;background:'+fill+'"></div></div>';
+    catEl.appendChild(tile);
+  });
+  // SKUs
+  const skuFreq={};
+  allSnapshots.forEach(p=>{const sd=p.sites.find(x=>x.site===siteName);if(!sd)return;sd.topSkus.forEach(sk=>{skuFreq[sk.sku]=(skuFreq[sk.sku]||0)+1;});});
+  const totalP=allSnapshots.length;
+  const tbody=document.getElementById('drillSkus');tbody.innerHTML='';
+  [...(s.topSkus||[])].sort((a,b)=>b.wasteCost-a.wasteCost).slice(0,15).forEach(sk=>{
+    const freq=skuFreq[sk.sku]||1;
+    const badge=totalP>1&&freq>=totalP?'<span class="freq-badge freq-repeat">repeat '+freq+'/'+totalP+'</span>':totalP>1&&freq>=totalP*0.5?'<span class="freq-badge freq-common">'+freq+'/'+totalP+' periods</span>':'';
+    const tr=document.createElement('tr');
+    tr.innerHTML='<td>'+sk.desc+badge+'</td><td style="text-align:left">'+(CAT_LABELS[sk.cat]||sk.cat)+'</td>'
+      +'<td>'+sk.unitsSold+'</td><td>'+sk.unitsWasted+'</td>'
+      +'<td style="color:'+(sk.unitWastePct>20?'var(--danger)':sk.unitWastePct>12?'var(--warn)':'inherit')+'">'+sk.unitWastePct+'%</td>'
+      +'<td>$'+sk.wasteCost.toFixed(2)+'</td>'
+      +'<td>'+(sk.costWastePct!==null?Math.round(sk.costWastePct*10)/10+'%':'\u2014')+'</td>';
+    tbody.appendChild(tr);
+  });
+  const panel=document.getElementById('drillPanel');
+  panel.classList.add('open');
+  panel.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function closeDrill(){document.getElementById('drillPanel').classList.remove('open');}
+function miniKpi(label,value,sub,cls){return'<div class="metric '+(cls||'')+'" style="min-width:120px;flex:1;"><div class="label">'+label+'</div><div class="value">'+value+'</div><div class="sub">'+(sub||'')+'</div></div>';}
+
+
+// ── EXECUTIVE PRINT PAGES ──────────────────────────────────────────────────
+function buildPrintPages() {
+  if (!allSnapshots.length) return;
+  const latest   = allSnapshots[allSnapshots.length - 1];
+  const prev     = allSnapshots.length > 1 ? allSnapshots[allSnapshots.length - 2] : null;
+  const ns       = latest.networkSummary;
+  const prevNs   = prev ? prev.networkSummary : null;
+  const delta    = prevNs ? (ns.netCostWastePct - prevNs.netCostWastePct).toFixed(1) : null;
+  const deltaStr = delta === null ? '—' : (parseFloat(delta) > 0 ? '+' + delta + 'pp' : delta + 'pp');
+  const periods  = allSnapshots.length;
+  const container = document.getElementById('printPages');
+  container.innerHTML = '';
+  document.getElementById('printFooterPeriod').textContent = latest.periodLabel;
+  const dateStr = new Date().toLocaleDateString('en-NZ', {day:'numeric',month:'long',year:'numeric'});
+
+  // PAGE 1: NETWORK SUMMARY
+  const summaryPage = document.createElement('div');
+  summaryPage.className = 'print-page';
+  summaryPage.innerHTML =
+    // ── PAGE 1: Header + KPIs + Headline ──
+    '<div class="px-header">' +
+      '<div class="px-header-main">' +
+        '<h1>Wastage Performance Report</h1>' +
+        '<p>Z Energy C‑Store · Network Analysis · ' + latest.periodLabel + '</p>' +
+      '</div>' +
+      '<div class="px-header-meta">' +
+        '<span>' + latest.sites.length + ' Sites</span>' +
+        '<span>' + periods + ' Period' + (periods > 1 ? 's' : '') + ' on Record</span>' +
+        '<strong>Generated ' + dateStr + '</strong>' +
+      '</div>' +
+    '</div>' +
+    '<div class="px-kpis">' +
+      pxKpi('Network Waste %', ns.netCostWastePct + '%', 'Cost of goods wasted', ns.netCostWastePct > 20 ? 'bad' : '') +
+      pxKpi('vs Prior Period', deltaStr, prev ? prev.periodLabel : 'No prior data', delta !== null && parseFloat(delta) < 0 ? 'good' : delta !== null ? 'bad' : '') +
+      pxKpi('Total Waste Cost', '$' + Math.round(ns.totalWasteCost).toLocaleString(), latest.periodLabel, 'bad') +
+      pxKpi('Units Sold', (ns.totalUnitsSold / 1000).toFixed(0) + 'k', 'Across network', '') +
+      pxKpi('On Target', ns.onTargetCount + ' / ' + ns.siteCount, 'Sites meeting target', ns.onTargetCount >= ns.siteCount / 2 ? 'good' : 'bad') +
+      (function(){ var n=latest.sites.reduce(function(s,x){return s+(x.salesEx?x.salesEx*(x.vsTarget||0)/100:0);},0); var r=Math.round(n); return pxKpi('Net $ vs Target',(r>=0?'+$':'-$')+Math.abs(r).toLocaleString(),'Overs minus unders',r<0?'good':'bad'); })() +
+    '</div>' +
+    (periods > 1 ? (function(){
+      var totalWC = allSnapshots.reduce(function(s,p){return s+p.networkSummary.totalWasteCost;},0);
+      var avgPct  = Math.round(allSnapshots.reduce(function(s,p){return s+p.networkSummary.netCostWastePct;},0)/periods*10)/10;
+      var netD    = allSnapshots.reduce(function(sum,snap){return sum+snap.sites.reduce(function(s,x){return s+(x.salesEx?x.salesEx*(x.vsTarget||0)/100:0);},0);},0);
+      var netR    = Math.round(netD);
+      var netS    = (netR>=0?'+$':'-$')+Math.abs(netR).toLocaleString();
+      var first   = allSnapshots[0].networkSummary.netCostWastePct;
+      var last    = allSnapshots[periods-1].networkSummary.netCostWastePct;
+      var diff    = Math.round((last-first)*10)/10;
+      var trendS  = diff===0?'→ Flat':diff<0?'↓ '+Math.abs(diff)+'pp improvement':'↑ '+diff+'pp worsening';
+      var sorted  = allSnapshots.slice().sort(function(a,b){return a.networkSummary.netCostWastePct-b.networkSummary.netCostWastePct;});
+      return '<p style="font-size:7pt;font-family:var(--mono);color:#888;text-transform:uppercase;letter-spacing:0.07em;margin:4mm 0 2mm;border-top:1pt solid #eee;padding-top:3mm;">Cumulative — ' + allSnapshots[0].periodLabel + ' → ' + latest.periodLabel + '</p>' +
+        '<div class="px-kpis">' +
+        pxKpi('Avg Network Waste %', avgPct+'%', periods+' periods', '') +
+        pxKpi('Total Waste Cost', '$'+Math.round(totalWC).toLocaleString(), 'all periods', 'bad') +
+        pxKpi('Net $ vs Target', netS, 'cumulative all periods', netR<0?'good':'bad') +
+        pxKpi('Overall Trend', trendS, allSnapshots[0].periodLabel+' → '+latest.periodLabel, diff<0?'good':'bad') +
+        pxKpi('Best Period', sorted[0].networkSummary.netCostWastePct+'%', sorted[0].periodLabel, 'good') +
+        pxKpi('Worst Period', sorted[sorted.length-1].networkSummary.netCostWastePct+'%', sorted[sorted.length-1].periodLabel, 'bad') +
+        '</div>';
+    })() : '') +
+    '<hr class="px-rule">' +
+    buildPxCommentary(latest, prev, 'headline') +
+
+    // ── PAGE 2: Network Commentary ──
+    '<div style="page-break-before:always;">' +
+      '<div class="px-header" style="margin-bottom:6mm;">' +
+        '<div class="px-header-main">' +
+          '<h1>Network Commentary</h1>' +
+          '<p>Z Energy C‑Store · Network Analysis · ' + latest.periodLabel + '</p>' +
+        '</div>' +
+        '<div class="px-header-meta"><strong>Period-on-Period Analysis</strong></div>' +
+      '</div>' +
+      buildPxCommentary(latest, prev, 'body') +
+    '</div>' +
+
+    // ── PAGE 3: Site League Table ──
+    '<div style="page-break-before:always;">' +
+      '<div class="px-header" style="margin-bottom:6mm;">' +
+        '<div class="px-header-main">' +
+          '<h1>Site Performance</h1>' +
+          '<p>Z Energy C‑Store · Network Analysis · ' + latest.periodLabel + '</p>' +
+        '</div>' +
+        '<div class="px-header-meta"><strong>Ranked by Cost Waste % vs Target</strong></div>' +
+      '</div>' +
+      '<div class="px-section-label" style="margin-bottom:4mm;">All Sites — ' + latest.sites.length + ' sites · ' + latest.periodLabel + '</div>' +
+      buildPxLeague(latest) +
+      '<div class="px-page-footnotes">* pp = percentage points above or below each site’s individual wastage cost target · Cost waste % = wastage cost as a percentage of cost of goods sold · Targets set per site based on product mix and throughput</div>' +
+    '</div>' +
+
+    // ── PAGE 4: Heatmap ──
+    '<div style="page-break-before:always;">' +
+      '<div class="px-header" style="margin-bottom:6mm;">' +
+        '<div class="px-header-main">' +
+          '<h1>Performance Heatmap</h1>' +
+          '<p>Z Energy C‑Store · Network Analysis · ' + (periods > 1 ? allSnapshots[0].periodLabel + ' → ' + latest.periodLabel : latest.periodLabel) + '</p>' +
+        '</div>' +
+        '<div class="px-header-meta"><strong>Cost Waste % by Site</strong></div>' +
+      '</div>' +
+      buildPxHeatmap(latest) +
+      '<div class="px-page-footnotes" style="margin-top:3mm;">' +
+        'Colour key: ' +
+        '<span style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#2d5a3d;color:#fff;padding:1pt 5pt;margin-right:3pt;">Well under target</span>' +
+        '<span style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#4a8c5c;color:#fff;padding:1pt 5pt;margin-right:3pt;">On/near target</span>' +
+        '<span style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#c8a84b;color:#fff;padding:1pt 5pt;margin-right:3pt;">Slightly over</span>' +
+        '<span style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#c06030;color:#fff;padding:1pt 5pt;margin-right:3pt;">Over target</span>' +
+        '<span style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#8b1a1a;color:#fff;padding:1pt 5pt;">Well over target</span>' +
+      '</div>' +
+    '</div>';
+
+    container.appendChild(summaryPage);
+
+  // Product Intelligence page — separate element so page breaks work cleanly
+  const productPage = document.createElement('div');
+  productPage.className = 'print-page';
+  productPage.innerHTML = buildPxProductPage(allSnapshots);
+  container.appendChild(productPage);
+
+  // PAGES 2-N: SITE DETAIL
+  const sorted = [...latest.sites].sort((a, b) => b.costWastePct - a.costWastePct);
+  sorted.forEach(function(s) {
+    const page = document.createElement('div');
+    page.className = 'print-page';
+    const statusCls  = s.onTarget ? 'good' : 'bad';
+    const statusText = s.onTarget
+      ? '✓ On Target — ' + Math.abs(s.vsTarget) + 'pp under'
+      : '✗ ' + s.vsTarget + 'pp above target';
+    const maxP = Math.max.apply(null, Object.values(s.categories).map(function(c){return c.costWastePct||0;}));
+    const cats = CAT_ORDER.map(function(cat) {
+      const c = s.categories[cat];
+      if (!c || !c.costWastePct) return '';
+      const pct = c.costWastePct;
+      const col = pct > 30 ? '#8b1a1a' : pct > 20 ? '#c06030' : pct > 12 ? '#c8a84b' : '#2d5a3d';
+      const barW = maxP > 0 ? Math.round(pct / maxP * 100) : 0;
+      return '<div class="px-cat-tile">' +
+        '<div class="pct-label">' + (c.label || CAT_LABELS[cat] || cat) + '</div>' +
+        '<div class="pct-val" style="-webkit-print-color-adjust:exact;print-color-adjust:exact;color:' + col + '">' + pct + '%' + (pct > 99 ? '<span style="font-size:7pt;font-weight:400;margin-left:2pt;">*</span>' : '') + '</div>' +
+        '<div class="pct-cost">$' + Math.round(c.wasteCost).toLocaleString() + ' wasted</div>' +
+        '<div class="pct-bar"><div class="pct-bar-fill" style="-webkit-print-color-adjust:exact;print-color-adjust:exact;width:' + barW + '%;background:' + col + '"></div></div>' +
+      '</div>';
+    }).join('');
+    // Build site-specific product tables
+    const siteSkusRaw = (s.topSkus || []).map(function(sk) {
+      return {
+        desc:         sk.desc,
+        cat:          sk.cat,
+        catLabel:     CAT_LABELS[sk.cat] || sk.cat,
+        wasteCost:    sk.wasteCost || 0,
+        wasteCostRounded: Math.round(sk.wasteCost || 0),
+        unitsSold:    sk.unitsSold || 0,
+        unitsWasted:  sk.unitsWasted || 0,
+        unitWastePct: sk.unitWastePct || 0,
+        siteCount:    1,
+        periodsInTop: getPriorPeriodCount(sk.desc, sk.sku),
+        totalPeriods: allSnapshots.length
+      };
+    });
+    const siteWorst5 = [...siteSkusRaw].sort(function(a,b){return b.wasteCost-a.wasteCost;}).slice(0,3);
+    const siteBest5  = [...siteSkusRaw]
+      .filter(function(s){return s.unitWastePct<16&&s.unitsSold>5;})
+      .sort(function(a,b){return b.unitsSold-a.unitsSold;}).slice(0,3);
+
+    function pxSiteTable(list, isWorst) {
+      if (!list.length) return '<p style="font-size:7pt;color:#aaa;font-family:var(--mono);">No data</p>';
+      const rows = list.map(function(sk, i) {
+        const badge = isWorst ? getRepeatBadge(sk, false) : '<span class="px-badge-s">Star</span>';
+        const wasteCost = Math.round(sk.wasteCost || sk.wasteCostRounded || 0);
+        const unitWastePct = sk.unitWastePct !== null && sk.unitWastePct !== undefined ? sk.unitWastePct + '%' : '—';
+        const unitsSold = sk.unitsSold > 0 ? sk.unitsSold.toLocaleString() : '—';
+        const costStyle = isWorst
+          ? 'color:#8b1a1a;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact;'
+          : 'color:#2d5a3d;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact;';
+        return '<tr>' +
+          '<td style="font-family:var(--sans);font-size:7pt;font-weight:500;">' + (i+1) + '. ' + sk.desc.substring(0,36) + (sk.desc.length>36?'…':'') + ' ' + badge + '</td>' +
+          '<td style="color:#888;font-size:6.5pt;">' + (sk.catLabel||'') + '</td>' +
+          '<td>' + unitsSold + '</td>' +
+          '<td style="' + costStyle + '">$' + wasteCost.toLocaleString() + '</td>' +
+          '<td>' + unitWastePct + '</td>' +
+        '</tr>';
+      }).join('');
+      return '<table class="px-prod-table" style="font-size:6.5pt;">' +
+        '<thead><tr>' +
+          '<th style="text-align:left;width:42%;">Product</th>' +
+          '<th style="text-align:left;width:16%;">Category</th>' +
+          '<th style="width:12%;">Units Sold</th>' +
+          '<th style="width:15%;">Waste $</th>' +
+          '<th style="width:10%;">Unit %</th>' +
+        '</tr></thead><tbody>' + rows + '</tbody></table>';
+    }
+
+    page.innerHTML =
+      '<div class="px-site-header">' +
+        '<div>' +
+          '<h2>' + s.site + '</h2>' +
+          '<div style="font-size:8pt;font-family:var(--mono);color:#666;margin-top:2pt;">' + latest.periodLabel + ' · Target: ' + s.target + '%</div>' +
+        '</div>' +
+        '<div class="px-site-meta">' +
+          '<div class="px-site-status ' + statusCls + '">' + statusText + '</div>' +
+          '<div style="margin-top:3pt;font-size:7.5pt;">Generated ' + dateStr + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="px-site-kpis">' +
+        pxKpi('Cost Waste %', s.costWastePct + '%', 'Target: ' + s.target + '%', s.onTarget ? 'good' : 'bad') +
+        pxKpi('vs Target', (s.vsTarget > 0 ? '+' : '') + s.vsTarget + 'pp', s.onTarget ? 'Under budget' : 'Over target', s.onTarget ? 'good' : 'bad') +
+        pxKpi('Waste Cost', '$' + Math.round(s.wasteCost).toLocaleString(), latest.periodLabel, '') +
+        pxKpi('Units Sold', s.unitsSold.toLocaleString(), s.unitsWasted + ' units wasted', '') +
+        pxKpi('Unit Waste %', s.unitWastePct + '%', 'Units wasted / total handled', '') +
+      '</div>' +
+      '<hr class="px-rule">' +
+      '<div class="px-section-label">Category Breakdown — Wastage Cost % of Sales by Category</div>' +
+      '<div class="px-cats">' + cats + '</div>' +
+      '<hr class="px-rule" style="margin:3mm 0 2mm;">' +
+      '<div class="px-prod-grid">' +
+        '<div>' +
+          '<div class="px-prod-section-label worst" style="font-size:6.5pt;">✕ Highest Wastage</div>' +
+          pxSiteTable(siteWorst5, true) +
+        '</div>' +
+        '<div>' +
+          '<div class="px-prod-section-label best" style="font-size:6.5pt;">★ Best Performers</div>' +
+          pxSiteTable(siteBest5, false) +
+        '</div>' +
+      '</div>' +
+      '';
+        container.appendChild(page);
+  });
+}
+
+function pxKpi(label, value, sub, cls) {
+  return '<div class="px-kpi ' + (cls || '') + '"><div class="pk-label">' + label + '</div><div class="pk-value">' + value + '</div><div class="pk-sub">' + sub + '</div></div>';
+}
+
+function buildPxLeague(latest) {
+  const sorted = [...latest.sites].sort(function(a,b){return b.vsTarget - a.vsTarget;});
+  const rows = sorted.map(function(s, i) {
+    const statusCls  = s.onTarget ? 'px-status-good' : s.vsTarget > 10 ? 'px-status-bad' : 'px-status-warn';
+    const statusText = s.onTarget ? '✓ On target' : '✗ +' + s.vsTarget + 'pp';
+    const valCls     = s.onTarget ? 'good-val' : s.vsTarget > 10 ? 'bad-val' : 'warn-val';
+    const deltaStr   = (s.vsTarget > 0 ? '+' : '') + s.vsTarget + 'pp';
+    return '<tr>' +
+      '<td>' + (i + 1) + '</td>' +
+      '<td>' + s.site + '</td>' +
+      '<td>' + s.target + '%</td>' +
+      '<td class="' + valCls + '">' + s.costWastePct + '%</td>' +
+      '<td><span class="' + statusCls + '">' + statusText + '</span></td>' +
+      '<td class="' + valCls + '">' + deltaStr + '</td>' +
+      '<td class="' + valCls + '">' + (s.salesEx?(s.onTarget?'-$':'+$')+Math.round(Math.abs(s.salesEx*(s.vsTarget||0)/100)).toLocaleString():'—') + '</td>' +
+      '<td>$' + Math.round(s.wasteCost).toLocaleString() + '</td>' +
+      '<td>' + s.unitsSold.toLocaleString() + '</td>' +
+    '</tr>';
+  }).join('');
+  return '<table class="px-league"><thead><tr>' +
+    '<th>#</th><th>Site</th><th>Target</th><th>Actual %</th>' +
+    '<th>Status</th><th>vs Target (pp)*</th><th>$ vs Target</th><th>Waste Cost</th><th>Units Sold</th>' +
+    '</tr></thead><tbody>' + rows + '</tbody></table>';
+}
+
+function buildPxHeatmap(latest) {
+  const siteOrder = [...latest.sites].sort(function(a,b){return b.costWastePct - a.costWastePct;}).map(function(s){return s.site;});
+  var ths = '<th class="site-col">Site / Target</th>';
+  allSnapshots.forEach(function(p){ ths += '<th>' + p.periodLabel + '</th>'; });
+  const rows = siteOrder.map(function(name) {
+    const tgt  = getSiteTarget(name, latest);
+    var cells  = '<td class="px-hm-site">' + name + ' <small>' + tgt + '% target</small></td>';
+    allSnapshots.forEach(function(p) {
+      const sd = p.sites.find(function(s){return s.site === name;});
+      if (!sd) { cells += '<td><div class="px-hm-cell px-heat-none">—</div></td>'; return; }
+      const hc   = heatClass(sd.vsTarget);
+      const cls  = 'px-' + (hc === 'hm-empty' ? 'heat-none' : hc);
+      cells += '<td><div class="px-hm-cell ' + cls + '">' + sd.costWastePct + '%</div></td>';
+    });
+    return '<tr>' + cells + '</tr>';
+  }).join('');
+  return '<div class="px-heatmap-wrap"><table class="px-heatmap"><thead><tr>' + ths + '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+}
+
+function printWithTitle() {
+  const latest = allSnapshots[allSnapshots.length - 1];
+  const shortYear = latest ? latest.periodLabel.replace(/^(\w+) (20)(\d{2})$/, '$1 $3') : '';
+  const origTitle = document.title;
+  document.title = 'Network Trend Analyser — Z Energy C-Store - ' + (shortYear || '');
+  window.print();
+  document.title = origTitle;
+}
+
+// ── PRODUCT INTELLIGENCE ─────────────────────────────────────────────────────
+
+function aggregateNetworkProducts(snapshots) {
+  // Aggregate SKUs across all sites in the latest snapshot
+  // Cross-reference with prior snapshots for repeat offender flags
+  const latest    = snapshots[snapshots.length - 1];
+  const priorSnaps = snapshots.slice(0, -1);
+  const skuMap    = {};
+
+  latest.sites.forEach(function(site) {
+    (site.topSkus || []).forEach(function(sku) {
+      const key = sku.sku || sku.desc;
+      if (!skuMap[key]) {
+        skuMap[key] = {
+          desc:         sku.desc,
+          cat:          sku.cat,
+          catLabel:     CAT_LABELS[sku.cat] || sku.cat,
+          wasteCost:    0,
+          salesEx:      0,
+          unitsSold:    0,
+          unitsWasted:  0,
+          siteCount:    0,
+          periodsInTop: 0
+        };
+      }
+      skuMap[key].wasteCost   += sku.wasteCost   || 0;
+      skuMap[key].salesEx     += sku.salesEx     || 0;
+      skuMap[key].unitsSold   += sku.unitsSold   || 0;
+      skuMap[key].unitsWasted += sku.unitsWasted || 0;
+      skuMap[key].siteCount   += 1;
+    });
+  });
+
+  // Count how many prior periods each SKU appeared in top wastage
+  priorSnaps.forEach(function(snap) {
+    const seenInSnap = new Set();
+    snap.sites.forEach(function(site) {
+      (site.topSkus || []).forEach(function(sku) {
+        const key = sku.sku || sku.desc;
+        seenInSnap.add(key);
+      });
+    });
+    seenInSnap.forEach(function(key) {
+      if (skuMap[key]) skuMap[key].periodsInTop += 1;
+    });
+  });
+
+  // Compute derived fields
+  const skus = Object.values(skuMap).map(function(s) {
+    return Object.assign({}, s, {
+      unitWastePct: s.unitsSold + s.unitsWasted > 0
+        ? Math.round(s.unitsWasted / (s.unitsSold + s.unitsWasted) * 1000) / 10
+        : null,
+      wasteCostRounded: Math.round(s.wasteCost),
+      totalPeriods: snapshots.length
+    });
+  });
+
+  return skus;
+}
+
+function getRepeatBadge(skuData, html) {
+  const prior = skuData.periodsInTop;
+  const total = skuData.totalPeriods - 1; // exclude latest
+  if (total < 1) return '';
+  if (html) {
+    if (prior >= total && total >= 1) return '<span class="badge-persistent">Persistent ' + prior + '/' + total + 'p</span>';
+    if (prior >= 1) return '<span class="badge-monitor">Monitor ' + prior + '/' + total + 'p</span>';
+  } else {
+    if (prior >= total && total >= 1) return '<span class="px-badge-p">Persistent ' + prior + '/' + total + 'p</span>';
+    if (prior >= 1) return '<span class="px-badge-m">Monitor ' + prior + '/' + total + 'p</span>';
+  }
+  return '';
+}
+
+function buildProductIntelligence() {
+  if (!allSnapshots.length) return;
+  const latest = allSnapshots[allSnapshots.length - 1];
+  document.getElementById('productCard').style.display = '';
+
+  // Populate site filter dropdown if not already done
+  const sel = document.getElementById('productSiteFilter');
+  if (sel.options.length <= 1) {
+    latest.sites.forEach(function(s) {
+      const opt = document.createElement('option');
+      opt.value = s.site;
+      opt.textContent = s.site;
+      sel.appendChild(opt);
+    });
+  }
+
+  const filter = sel.value;
+  const isNetwork = filter === '__network__';
+
+  // Update label
+  const label = document.getElementById('productSiteLabel');
+  label.textContent = isNetwork
+    ? 'Latest period · aggregated across all sites'
+    : 'Latest period · ' + filter;
+
+  let worst10, best10;
+
+  if (isNetwork) {
+    const skus = aggregateNetworkProducts(allSnapshots);
+    worst10 = [...skus].sort(function(a,b){return b.wasteCost - a.wasteCost;}).slice(0, 10);
+    best10  = [...skus]
+      .filter(function(s){ return s.unitWastePct !== null && s.unitWastePct < 16 && s.unitsSold > 50; })
+      .sort(function(a,b){ return b.unitsSold - a.unitsSold; })
+      .slice(0, 10);
+  } else {
+    // Single site view — use that site's topSkus directly from latest snapshot
+    const site = latest.sites.find(function(s){ return s.site === filter; });
+    const skus = site ? (site.topSkus || []).map(function(sk) {
+      return {
+        desc:         sk.desc,
+        cat:          sk.cat,
+        catLabel:     CAT_LABELS[sk.cat] || sk.cat,
+        wasteCost:    sk.wasteCost || 0,
+        wasteCostRounded: Math.round(sk.wasteCost || 0),
+        salesEx:      sk.salesEx || 0,
+        unitsSold:    sk.unitsSold || 0,
+        unitsWasted:  sk.unitsWasted || 0,
+        unitWastePct: sk.unitWastePct || 0,
+        siteCount:    1,
+        periodsInTop: getPriorPeriodCount(sk.desc, sk.sku),
+        totalPeriods: allSnapshots.length
+      };
+    }) : [];
+    worst10 = [...skus].sort(function(a,b){return b.wasteCost - a.wasteCost;}).slice(0, 10);
+    best10  = [...skus]
+      .filter(function(s){ return s.unitWastePct !== null && s.unitWastePct < 16 && s.unitsSold > 10; })
+      .sort(function(a,b){ return b.unitsSold - a.unitsSold; })
+      .slice(0, 10);
+  }
+
+  document.getElementById('worstProductsTable').innerHTML = buildProductTable(worst10, 'worst', latest);
+  document.getElementById('bestProductsTable').innerHTML  = buildProductTable(best10,  'best',  latest);
+}
+
+function getPriorPeriodCount(desc, sku) {
+  // Count how many prior periods this SKU appeared in top wastage across any site
+  const priorSnaps = allSnapshots.slice(0, -1);
+  let count = 0;
+  priorSnaps.forEach(function(snap) {
+    const found = snap.sites.some(function(site) {
+      return (site.topSkus || []).some(function(s) {
+        return s.sku === sku || s.desc === desc;
+      });
+    });
+    if (found) count++;
+  });
+  return count;
+}
+
+function buildProductTable(skus, type, latest) {
+  const isWorst = type === 'worst';
+  const rows = skus.map(function(s, i) {
+    const badge = isWorst ? getRepeatBadge(s, true) : '<span class="badge-star">&#11088; Star</span>';
+    const pctCol = isWorst
+      ? '<td style="color:'+(s.unitWastePct>20?'var(--danger)':s.unitWastePct>12?'var(--warn)':'inherit')+'">' + (s.unitWastePct !== null ? s.unitWastePct + '%' : '—') + '</td>'
+      : '<td style="color:var(--accent)">' + (s.unitWastePct !== null ? s.unitWastePct + '%' : '—') + '</td>';
+    return '<tr>' +
+      '<td><span style="color:var(--text3);font-size:10px;margin-right:4px;">' + (i+1) + '</span>' +
+      s.desc.substring(0, 28) + (s.desc.length > 28 ? '…' : '') + badge + '</td>' +
+      '<td style="font-size:10px;color:var(--text3);">' + (s.catLabel || '') + '</td>' +
+      '<td>' + s.siteCount + '</td>' +
+      '<td>' + (s.unitsSold > 0 ? s.unitsSold.toLocaleString() : '—') + '</td>' +
+      '<td style="font-weight:600;color:'+(isWorst?'var(--danger)':'var(--accent)')+'">$' + s.wasteCostRounded.toLocaleString() + '</td>' +
+      pctCol +
+    '</tr>';
+  }).join('');
+
+  return '<table class="prod-table">' +
+    '<thead><tr>' +
+    '<th>Product</th><th>Category</th><th>Sites</th><th>Units Sold</th><th>Waste $</th><th>Unit %</th>' +
+    '</tr></thead><tbody>' + rows + '</tbody></table>';
+}
+
+// ── PRINT VERSION ─────────────────────────────────────────────────────────────
+function buildPxProductPage(snapshots) {
+  const skus   = aggregateNetworkProducts(snapshots);
+  const latest = snapshots[snapshots.length - 1];
+
+  const worst10 = [...skus].sort(function(a,b){return b.wasteCost-a.wasteCost;}).slice(0,10);
+  const best10  = [...skus]
+    .filter(function(s){return s.unitWastePct!==null&&s.unitWastePct<16&&s.unitsSold>50;})
+    .sort(function(a,b){return b.unitsSold-a.unitsSold;}).slice(0,10);
+
+  function pxTable(list, isWorst) {
+    const rows = list.map(function(s, i) {
+      const badge = isWorst ? getRepeatBadge(s, false) : '<span class="px-badge-s">Star</span>';
+      const pct   = s.unitWastePct !== null ? s.unitWastePct + '%' : '—';
+      const costCol = isWorst
+        ? '<td style="-webkit-print-color-adjust:exact;print-color-adjust:exact;color:#8b1a1a;font-weight:700;">$' + s.wasteCostRounded.toLocaleString() + '</td>'
+        : '<td style="-webkit-print-color-adjust:exact;print-color-adjust:exact;color:#2d5a3d;font-weight:700;">$' + s.wasteCostRounded.toLocaleString() + '</td>';
+      return '<tr>' +
+        '<td>' + (i+1) + '. ' + s.desc.substring(0,32) + (s.desc.length>32?'…':'') + ' ' + badge + '</td>' +
+        '<td style="color:#888;">' + (s.catLabel||'') + '</td>' +
+        '<td>' + s.siteCount + '</td>' +
+        '<td>' + (s.unitsSold>0?s.unitsSold.toLocaleString():'—') + '</td>' +
+        costCol +
+        '<td>' + pct + '</td>' +
+      '</tr>';
+    }).join('');
+    return '<table class="px-prod-table"><thead><tr>' +
+      '<th>Product</th><th>Category</th><th>Sites</th><th>Units Sold</th><th>Waste $</th><th>Unit %</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table>';
+  }
+
+  const dateStr = new Date().toLocaleDateString('en-NZ', {day:'numeric',month:'long',year:'numeric'});
+  return '<div>' +
+    '<div class="px-prod-header">' +
+      '<div>' +
+        '<h1>Product Intelligence</h1>' +
+        '<p style="font-size:8pt;font-family:var(--mono);color:#666;margin-top:2pt;">Z Energy C‑Store · Network Analysis · ' + latest.periodLabel + '</p>' +
+      '</div>' +
+      '<div style="font-family:var(--mono);font-size:8pt;color:#666;text-align:right;">' +
+        '<strong>Generated ' + dateStr + '</strong>' +
+      '</div>' +
+    '</div>' +
+    '<div class="px-prod-grid">' +
+      '<div>' +
+        '<div class="px-prod-section-label worst">✕ Bottom 10 — Deletion Candidates · Ranked by Waste Cost</div>' +
+        pxTable(worst10, true) +
+      '</div>' +
+      '<div>' +
+        '<div class="px-prod-section-label best">★ Top 10 — Network Stars · Ranked by Units Sold</div>' +
+        pxTable(best10, false) +
+      '</div>' +
+    '</div>' +
+    '<div class="px-page-footnotes">Persistent = appeared in top wastage in every prior period on record · Monitor = appeared in at least one prior period · Stars = unit waste below 16% with high sales volume · Based on top 20 SKUs per site by waste cost</div>' +
+  '</div>';
+}
+
+
+// ── COMMENTARY & MOST IMPROVED/DECLINED ──────────────────────────────────────
+function buildCommentary() {
+  if (!allSnapshots.length) return;
+  const latest  = allSnapshots[allSnapshots.length - 1];
+  const prev    = allSnapshots.length > 1 ? allSnapshots[allSnapshots.length - 2] : null;
+  const ns      = latest.networkSummary;
+  const prevNs  = prev ? prev.networkSummary : null;
+
+  let c;
+  try {
+    c = generateCommentaryData(latest, prev, ns, prevNs);
+  } catch(err) {
+    console.error('Commentary error:', err);
+    c = { headline: 'Commentary unavailable — ' + err.message, body: '', mostImproved: null, mostDeclined: null };
+  }
+
+  // ── Screen card ──
+  const card = document.getElementById('commentaryCard');
+  card.style.display = '';
+  document.getElementById('commentaryPeriodLabel').textContent = latest.periodLabel;
+  document.getElementById('commentaryHeadline').textContent = c.headline;
+  document.getElementById('commentaryBody').innerHTML = c.body || '<em style="color:red">No body generated</em>';
+
+  const mviEl = document.getElementById('commentaryMVI');
+  mviEl.innerHTML = '';
+  if (c.mostImproved) mviEl.appendChild(buildMVITile(c.mostImproved, 'Most Improved', true));
+  if (c.mostDeclined) mviEl.appendChild(buildMVITile(c.mostDeclined, 'Needs Attention', false));
+}
+
+function generateCommentaryData(latest, prev, ns, prevNs) {
+  // Sites excluded from commentary (different offer / not comparable)
+  const COMMENTARY_EXCLUDE = ['Z Seaview'];
+  const sites      = latest.sites.filter(function(s){ return COMMENTARY_EXCLUDE.indexOf(s.site) === -1; });
+  const prevSites  = prev ? prev.sites.filter(function(s){ return COMMENTARY_EXCLUDE.indexOf(s.site) === -1; }) : null;
+  const periods    = allSnapshots.length;
+  const delta      = prevNs ? (ns.netCostWastePct - prevNs.netCostWastePct) : null;
+  const isSingle   = periods === 1;
+
+  // ── Most improved / most declined (period on period) ──
+  let mostImproved = null, mostDeclined = null;
+  if (prevSites) {
+    let bestDelta = 0, worstDelta = 0;
+    sites.forEach(function(s) {
+      const p = prevSites.find(function(x){return x.site === s.site;});
+      if (!p) return;
+      const d = s.costWastePct - p.costWastePct;
+      if (d < bestDelta)  { bestDelta = d;  mostImproved = {site:s, prev:p, delta:d}; }
+      if (d > worstDelta) { worstDelta = d; mostDeclined = {site:s, prev:p, delta:d}; }
+    });
+  }
+
+  // ── Persistent offenders (above target every period) ──
+  const persistent = sites.filter(function(s) {
+    return allSnapshots.every(function(snap) {
+      const sd = snap.sites.find(function(x){return x.site === s.site;});
+      return sd && sd.onTarget === false;
+    });
+  });
+
+  // ── Category pattern: which category drags most sites ──
+  const catTotals = {};
+  sites.forEach(function(s) {
+    Object.keys(s.categories).forEach(function(cat) {
+      const c = s.categories[cat];
+      if (!c || !c.costWastePct) return;
+      if (!catTotals[cat]) catTotals[cat] = {count:0, totalCost:0, label:''};
+      catTotals[cat].count++;
+      catTotals[cat].totalCost += (c.wasteCost || 0);
+      catTotals[cat].label = c.label || CAT_LABELS[cat] || cat;
+    });
+  });
+  // Find category with highest total waste cost across network
+  let topCat = null, topCatCost = 0;
+  Object.keys(catTotals).forEach(function(cat) {
+    if (catTotals[cat].totalCost > topCatCost) {
+      topCatCost = catTotals[cat].totalCost;
+      topCat = { key: cat, label: catTotals[cat].label, count: catTotals[cat].count, cost: catTotals[cat].totalCost };
+    }
+  });
+  // Z Espress specifically — how many sites is it a top-3 drag?
+  const zespressSites = sites.filter(function(s) {
+    const c = s.categories['zespress'];
+    if (!c || !c.costWastePct) return false;
+    const sortedCats = Object.entries(s.categories)
+      .filter(function(e){return e[1] && e[1].costWastePct;})
+      .sort(function(a,b){return b[1].costWastePct - a[1].costWastePct;});
+    const rank = sortedCats.findIndex(function(e){return e[0] === 'zespress';});
+    return rank >= 0 && rank <= 2;
+  });
+  const zespressCount = zespressSites.length;
+  const zespressCost = sites.reduce(function(sum, s) {
+    return sum + ((s.categories['zespress'] && s.categories['zespress'].wasteCost) || 0);
+  }, 0);
+
+  // ── Benchmark (most under target) ──
+  const benchmark = sites.filter(function(s){return s.onTarget;}).sort(function(a,b){return a.vsTarget - b.vsTarget;})[0];
+
+  // ── Build headline ──
+  let headline = '';
+  if (isSingle) {
+    const onTgt = ns.onTargetCount, total = ns.siteCount;
+    headline = ns.netCostWastePct + '% network cost waste in ' + latest.periodLabel + ' — ' + onTgt + ' of ' + total + ' sites on target, $' + Math.round(ns.totalWasteCost).toLocaleString() + ' total wastage cost.';
+  } else {
+    const dir   = delta < 0 ? 'improved' : 'increased';
+    const absDelta = Math.abs(delta).toFixed(1);
+    headline = 'Network wastage ' + dir + ' ' + absDelta + 'pp in ' + latest.periodLabel + ' to ' + ns.netCostWastePct + '% — ' + ns.onTargetCount + ' of ' + ns.siteCount + ' sites now on target' + (delta < 0 ? ', down from ' + ns.aboveTargetCount + ' sites above target last period' : '') + '.';
+  }
+
+  // ── Build body sentences ──
+  const sentences = [];
+
+  // Most improved
+  if (mostImproved) {
+    const mi = mostImproved;
+    const prevSite = prevSites ? prevSites.find(function(x){return x.site===mi.site.site;}) : null;
+    const hitTarget = mi.site.onTarget && prevSite && !prevSite.onTarget;
+    sentences.push(mi.site.site + ' recorded the strongest improvement, falling ' + Math.abs(mi.delta).toFixed(1) + 'pp from ' + mi.prev.costWastePct + '% to ' + mi.site.costWastePct + '%' + (hitTarget ? ', reaching its ' + mi.site.target + '% target for the first time on record' : '') + '.');
+  }
+
+  // Most declined
+  if (mostDeclined && mostDeclined.delta > 1) {
+    const md = mostDeclined;
+    sentences.push(md.site.site + ' moved in the wrong direction, rising ' + md.delta.toFixed(1) + 'pp to ' + md.site.costWastePct + '% against a ' + md.site.target + '% target.');
+  }
+
+  // Persistent offenders
+  if (persistent.length > 0 && periods > 1) {
+    const names = persistent.map(function(s){return s.site;}).join(', ');
+    const worst = persistent.sort(function(a,b){return b.vsTarget - a.vsTarget;})[0];
+    sentences.push(persistent.length === 1
+      ? names + ' has been above target in every period on record — currently ' + worst.vsTarget + 'pp over — and warrants direct operational review.'
+      : persistent.length + ' sites (' + names + ') have been above target in every period on record and warrant direct review.');
+  }
+
+  // Z Espress network pattern
+  let catSentence = '';
+  if (zespressCount >= 2 && zespressCost > 500) {
+    catSentence = 'Z Espress continues to be a consistent wastage driver across the network — a top-three cost category at ' + zespressCount + ' sites this period, contributing $' + Math.round(zespressCost).toLocaleString() + ' in waste costs. Sandwich ordering volumes and ranging across affected sites warrant a network-level conversation.';
+  } else if (topCat && topCat.key !== 'classic' && topCatCost > 3000) {
+    catSentence = topCat.label + ' is the highest-cost wastage category across the network this period at $' + Math.round(topCatCost).toLocaleString() + ' across ' + topCat.count + ' sites — worth reviewing whether ordering levels are calibrated correctly at a network level.';
+  }
+
+  // Benchmark callout
+  if (benchmark && benchmark.vsTarget < -5) {
+    sentences.push(benchmark.site + ' remains the network benchmark at ' + benchmark.costWastePct + '% against a ' + benchmark.target + '% target — ' + Math.abs(benchmark.vsTarget) + 'pp under. Consider reviewing their ordering approach as a model for other sites.');
+  }
+
+  // ── Product sentence ──
+  let productSentence = '';
+  if (allSnapshots.length > 0) {
+    const skus = aggregateNetworkProducts(allSnapshots);
+    // Worst: highest waste cost with repeat offender flag
+    const worst = skus.sort(function(a,b){return b.wasteCost - a.wasteCost;})[0];
+    // Best: highest units sold with <16% waste
+    const bestList = skus.filter(function(s){return s.unitWastePct !== null && s.unitWastePct < 16 && s.unitsSold > 50;});
+    const best = bestList.sort(function(a,b){return b.unitsSold - a.unitsSold;})[0];
+    // Persistent offenders (in top wastage every prior period)
+    const totalPrior = allSnapshots.length - 1;
+    const persistentP = totalPrior > 0 ? skus.filter(function(s){return s.periodsInTop >= totalPrior;}) : [];
+
+    const parts = [];
+    if (worst) {
+      const repeatFlag = worst.periodsInTop >= totalPrior && totalPrior > 0
+        ? ' — a persistent offender across all ' + allSnapshots.length + ' periods on record'
+        : worst.periodsInTop > 0 ? ' — flagged in ' + worst.periodsInTop + ' of ' + allSnapshots.length + ' periods' : '';
+      parts.push(worst.desc + ' is the highest-cost wastage product across the network at $' + Math.round(worst.wasteCost).toLocaleString() + ' in waste costs this period' + repeatFlag + ', stocked at ' + worst.siteCount + ' site' + (worst.siteCount !== 1 ? 's' : '') + '.');
+    }
+    if (persistentP.length > 0 && totalPrior > 0) {
+      const names = persistentP.slice(0,3).map(function(s){return s.desc;}).join(', ');
+      const more  = persistentP.length > 3 ? ' and ' + (persistentP.length - 3) + ' others' : '';
+      parts.push(persistentP.length + ' product' + (persistentP.length !== 1 ? 's have' : ' has') + ' appeared in the top wastage list in every period on record (' + names + more + ') — these represent the strongest candidates for ranging review or deletion.');
+    }
+    if (best) {
+      parts.push(best.desc + ' is the standout network star — ' + best.unitsSold.toLocaleString() + ' units sold with only ' + best.unitWastePct + '% unit waste across ' + best.siteCount + ' site' + (best.siteCount !== 1 ? 's' : '') + ', demonstrating strong demand calibration.');
+    }
+    if (parts.length > 0) productSentence = parts.join(' ');
+  }
+
+  return {
+    headline: headline,
+    body: sentences.join(' ') + (catSentence ? '<br><br>' + catSentence : '') + (productSentence ? '<br><br>' + productSentence : ''),
+    mostImproved: mostImproved,
+    mostDeclined: mostDeclined && mostDeclined.delta > 1 ? mostDeclined : null,
+    productSentence: productSentence
+  };
+}
+
+function buildMVITile(item, label, isGood) {
+  const div  = document.createElement('div');
+  const cls  = isGood ? 'mvi-good' : 'mvi-bad';
+  const dir  = isGood ? '↓' : '↑';
+  const sign = isGood ? '' : '+';
+  div.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.9rem 1.1rem;border-left:3px solid '+(isGood?'var(--accent)':'var(--danger)')+';';
+  div.innerHTML =
+    '<div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">' + label + '</div>' +
+    '<div style="font-size:1.2rem;font-weight:600;letter-spacing:-0.02em;">' + item.site.site + '</div>' +
+    '<div style="font-size:1rem;font-weight:700;font-family:var(--mono);color:'+(isGood?'var(--accent)':'var(--danger)')+';margin-top:3px;">' + dir + ' ' + Math.abs(item.delta).toFixed(1) + 'pp ' + (isGood ? 'improvement' : 'increase') + '</div>' +
+    '<div style="font-size:11px;font-family:var(--mono);color:var(--text3);margin-top:2px;">' + item.prev.costWastePct + '% → ' + item.site.costWastePct + '% · Target: ' + item.site.target + '%</div>';
+  return div;
+}
+
+// ── PRINT VERSION of commentary ──────────────────────────────────────────────
+function buildPxCommentary(latest, prev, part) {
+  const ns    = latest.networkSummary;
+  const prevNs = prev ? prev.networkSummary : null;
+  const c = generateCommentaryData(latest, prev, ns, prevNs);
+
+  let mviHtml = '';
+  if (c.mostImproved || c.mostDeclined) {
+    mviHtml = '<div class="px-mvi-grid">';
+    if (c.mostImproved) {
+      const mi = c.mostImproved;
+      mviHtml += '<div class="px-mvi-tile">' +
+        '<div class="mvi-label">Most Improved</div>' +
+        '<div class="mvi-site mvi-good">' + mi.site.site + '</div>' +
+        '<div class="mvi-delta mvi-good">↓ ' + Math.abs(mi.delta).toFixed(1) + 'pp improvement</div>' +
+        '<div class="mvi-detail">' + mi.prev.costWastePct + '% → ' + mi.site.costWastePct + '% · Target: ' + mi.site.target + '%</div>' +
+      '</div>';
+    }
+    if (c.mostDeclined) {
+      const md = c.mostDeclined;
+      mviHtml += '<div class="px-mvi-tile">' +
+        '<div class="mvi-label">Needs Attention</div>' +
+        '<div class="mvi-site mvi-bad">' + md.site.site + '</div>' +
+        '<div class="mvi-delta mvi-bad">↑ ' + md.delta.toFixed(1) + 'pp increase</div>' +
+        '<div class="mvi-detail">' + md.prev.costWastePct + '% → ' + md.site.costWastePct + '% · Target: ' + md.site.target + '%</div>' +
+      '</div>';
+    }
+    mviHtml += '</div>';
+  }
+
+  const headlineHtml = '<div class="px-commentary-headline">' + c.headline + '</div>';
+  const bodyHtml = mviHtml +
+    '<div class="px-commentary-body">' + (c.body ? c.body.replace(/<br><br>/g, '</div><div class="px-commentary-body" style="margin-top:3mm;">') : '') + '</div>';
+
+  if (part === 'headline') return '<div class="px-commentary" style="margin-bottom:0;">' + headlineHtml + '</div>';
+  if (part === 'body')     return '<div class="px-commentary">' + bodyHtml + '</div>';
+  return '<div class="px-commentary">' + headlineHtml + bodyHtml + '</div>';
+}
+</script>
+<!-- PRINT PAGES -->
+<div id="printPages" class="print-only"></div>
+<div class="px-footer print-only">
+  <span>Z Energy C-Store &middot; Network Wastage Performance</span>
+  <span id="printFooterPeriod"></span>
+  <span>Confidential &mdash; Internal Use Only</span>
+</div>
+</body>
+</html>
