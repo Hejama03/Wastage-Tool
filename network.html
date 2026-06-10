@@ -1062,6 +1062,7 @@ function exportTrendSnapshot() {
       unitWastePct: d.overallUnitPct,
       wasteCost:    Math.round(d.totalWasteCost * 100) / 100,
       salesEx:      Math.round(d.totalSalesEx  * 100) / 100,
+      salesCost:    d.totalSalesCost != null ? Math.round(d.totalSalesCost * 100) / 100 : null,
       costWastePct: d.overallCostPct,
       vsTarget:     d.target !== null ? Math.round((d.overallCostPct - d.target) * 10) / 10 : null,
       onTarget:     d.target !== null ? d.overallCostPct <= d.target : null,
@@ -1072,7 +1073,7 @@ function exportTrendSnapshot() {
 
   // The snapshot object — one per network run, one period
   const snapshot = {
-    _version:    2,
+    _version:    3,
     cadence:     'monthly',
     periodKey,
     periodLabel,
@@ -1082,10 +1083,11 @@ function exportTrendSnapshot() {
       totalUnitsSold:  sites.reduce((s, d) => s + d.unitsSold, 0),
       totalWasteCost:  Math.round(sites.reduce((s, d) => s + d.wasteCost, 0) * 100) / 100,
       totalSalesEx:    Math.round(sites.reduce((s, d) => s + d.salesEx, 0) * 100) / 100,
+      totalSalesCost:  Math.round(sites.reduce((s, d) => s + (d.salesCost != null ? d.salesCost : d.salesEx), 0) * 100) / 100,
       netCostWastePct: (() => {
         const wc = sites.reduce((s, d) => s + d.wasteCost, 0);
-        const sx = sites.reduce((s, d) => s + d.salesEx, 0);
-        return sx > 0 ? Math.round(wc / sx * 1000) / 10 : null;
+        const cb = sites.reduce((s, d) => s + (d.salesCost != null ? d.salesCost : d.salesEx), 0);
+        return cb > 0 ? Math.round(wc / cb * 1000) / 10 : null;
       })(),
       onTargetCount:   sites.filter(d => d.onTarget === true).length,
       aboveTargetCount:sites.filter(d => d.onTarget === false).length
@@ -1123,7 +1125,8 @@ function renderNetworkMetrics() {
   const totalWasted = total.reduce((s, d) => s + d.totalWasted, 0);
   const totalWasteCost = total.reduce((s, d) => s + d.totalWasteCost, 0);
   const totalSalesEx = total.reduce((s, d) => s + d.totalSalesEx, 0);
-  const netCostPct = totalSalesEx > 0 ? Math.round(totalWasteCost / totalSalesEx * 1000) / 10 : 0;
+  const totalCostBase = total.reduce((s, d) => s + (d.totalSalesCost || d.totalSalesEx), 0);
+  const netCostPct = totalCostBase > 0 ? Math.round(totalWasteCost / totalCostBase * 1000) / 10 : 0;
   const netUnitPct = (totalSold + totalWasted) > 0 ? Math.round(totalWasted / (totalSold + totalWasted) * 1000) / 10 : 0;
   const withTargets = total.filter(d => d.target !== null);
   const onTarget = withTargets.filter(d => d.overallCostPct <= d.target).length;
