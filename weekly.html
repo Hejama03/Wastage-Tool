@@ -1892,7 +1892,7 @@ function parseSales(rows, upcToSku) {
       else if (cell.includes('quantity') || cell === 'qty' || cell === 'qty sold' || cell === 'units sold') foundQty = c;
       else if (cell === 'total ($)' || cell === 'total' || cell === 'net sales ex' ||
                cell === 'sales ex' || cell === 'revenue' || cell.includes('total $') ||
-               cell === 'ex gst' || cell === 'net ex') foundRev = c;
+               cell === 'ex gst' || cell === 'net ex' || cell === 'total ex') foundRev = c;
     }
     // Need at least Description + Quantity to call it a header row
     if (foundDesc >= 0 && foundQty >= 0) {
